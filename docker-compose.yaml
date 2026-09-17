@@ -1,0 +1,14 @@
+# this setup is just for local development
+services:
+  backend:
+    build: ./backend
+    ports: 
+    - "3000:3000"
+    env_file: ./backend/ .env
+# frontend service
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
