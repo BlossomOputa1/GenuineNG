@@ -16,3 +16,8 @@ test('unknown registration number returns unverified, never fake', () => {
   const result = checkRegistration('FAKE-000');
   assert.equal(result.status, 'unverified');
 });
+
+test('whitespace-only registration number returns not_checked, treated as missing', () => {
+  const result = checkRegistration('   ');
+  assert.equal(result.status, 'not_checked');
+});

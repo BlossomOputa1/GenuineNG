@@ -23,3 +23,18 @@ test('future expiry date returns match', () => {
   const result = checkExpiry('2030-01-01', fixedNow);
   assert.equal(result.status, 'match');
 });
+
+test('expiry date equal to today returns match', () => {
+  const result = checkExpiry('2026-06-01', fixedNow); // same as fixedNow
+  assert.equal(result.status, 'match');
+});
+
+test('leap year expiry date is handled correctly', () => {
+  const result = checkExpiry('2028-02-29', fixedNow);
+  assert.equal(result.status, 'match');
+});
+
+test('expiry date at end of month boundary', () => {
+  const result = checkExpiry('2026-06-30', fixedNow);
+  assert.equal(result.status, 'match');
+});
