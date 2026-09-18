@@ -9,7 +9,7 @@ const MOCK_REGISTRATIONS = [
 ];
 
 export function checkRegistration(registrationNumber, now = new Date()) {
-  if (!registrationNumber) {
+  if (!registrationNumber || registrationNumber.trim() === '') {
     return {
       status: 'not_checked',
       reason: 'No registration number provided.',

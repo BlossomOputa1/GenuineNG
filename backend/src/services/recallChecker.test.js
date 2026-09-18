@@ -16,3 +16,12 @@ test('unrecalled batch returns not_checked, not a safety claim', () => {
   const result = checkRecall('B-9999-999');
   assert.equal(result.status, 'not_checked');
 });
+
+test('known non-recalled batch (explicitly cleared) returns match', () => {
+  const result = checkRecall('B-2024-050');
+  assert.equal(result.status, 'match');
+});
+test('unknown batch (absent from both lists) still returns not_checked, not match', () => {
+  const result = checkRecall('B-0000-000');
+  assert.equal(result.status, 'not_checked');
+});
