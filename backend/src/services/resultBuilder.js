@@ -1,21 +1,20 @@
 import { checkExpiry } from './expiryChecker.js';
 import { checkRegistration } from './registrationMatcher.js';
-import { checkRecall } from './recallChecker.js';
-import { checkIngredients } from './ingredientChecker.js';
 
-export function buildResult({
+export async function buildResult({
   expiryDate,
   registrationNumber,
-  batchNumber,
-  ingredients,
+  productName,
+  manufacturer,
 }) {
   const now = new Date();
 
   const checks = {
-    registration: checkRegistration(registrationNumber, now),
+    registration: await checkRegistration(
+      { registrationNumber, productName, manufacturer },
+      now
+    ),
     expiry: checkExpiry(expiryDate, now),
-    recall: checkRecall(batchNumber, now),
-    ingredients: checkIngredients(ingredients, now),
   };
 
   return {

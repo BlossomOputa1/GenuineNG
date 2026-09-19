@@ -18,7 +18,13 @@ const paths = {
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7h.01" /></>,
   minus: <path d="M5 12h14" />,
   question: <><path d="M9 8a3 3 0 1 1 4 3c-1 1-1 2-1 3M12 18h.01" /></>,
-  offline: <><path d="m3 3 18 18M2 8a16 16 0 0 1 3-2m4-2a16 16 0 0 1 13 4M5 12a11 11 0 0 1 3-2m6-1a11 11 0 0 1 5 3M8 16a6 6 0 0 1 7-1M12 20h.01" /></>
+  offline: <><path d="m3 3 18 18M2 8a16 16 0 0 1 3-2m4-2a16 16 0 0 1 13 4M5 12a11 11 0 0 1 3-2m6-1a11 11 0 0 1 5 3M8 16a6 6 0 0 1 7-1M12 20h.01" /></>,
+  pin: <><path d="M9 3h6l-1 5 3 3v2H7v-2l3-3zM12 13v8" /></>,
+  edit: <><path d="M4 20h4l11-11-4-4L4 16zM13.5 6.5l4 4" /></>,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
+  eye: <><path d="M2.5 12s3.4-5 9.5-5 9.5 5 9.5 5-3.4 5-9.5 5-9.5-5-9.5-5Z" /><circle cx="12" cy="12" r="2.25" /></>,
+  eyeOff: <><path d="M3 3l18 18" /><path d="M10.6 7.1A10.7 10.7 0 0 1 12 7c6.1 0 9.5 5 9.5 5a15.9 15.9 0 0 1-3 3.4M14.2 14.2A3 3 0 0 1 9.8 9.8M6.1 6.1C3.7 7.7 2.5 12 2.5 12s3.4 5 9.5 5c1.5 0 2.8-.3 4-.8" /></>,
+  more: <><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /></>
 };
 export default function Icon({
   name,

@@ -1,0 +1,11 @@
+{
+  "name": "genuineng-layer-one-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "data:validate": "node data/scripts/validate_dataset.js",
+    "test:backend": "npm --prefix backend test",
+    "test:frontend-logic": "npm --prefix frontend run test:logic"
+  }
+}

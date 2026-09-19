@@ -1,18 +1,9 @@
-import DemoScanFlow from '../components/DemoScanFlow';
+import LabelCheckFlow from '../components/LabelCheckFlow';
 
-export default function GuestScanPage({
-  initialPhotoFile,
-  previousScans,
-  onResultComplete,
-  navigate
-}) {
+export default function GuestScanPage({ initialPhotoFile, previousScans, onResultComplete, navigate }) {
   return (
     <div className="guest-scan-page">
-      <div className="guest-scan-banner">
-        <span>Guest check</span>
-        <p>This session is temporary. Leave this page and the demo scan history is cleared.</p>
-      </div>
-      <DemoScanFlow
+      <LabelCheckFlow
         initialPhotoFile={initialPhotoFile}
         previousScans={previousScans}
         onResultComplete={onResultComplete}

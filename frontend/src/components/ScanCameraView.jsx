@@ -96,7 +96,6 @@ export default function ScanCameraView({
     if (file) onPhoto(file);
   }
   return <section className="capture-panel" aria-label="Photograph your product label">
-    <div className="panel-heading"><span className="eyebrow">THE LABEL, UP CLOSE</span><span className="secondary-text">{launcherMode ? 'Front image starts the check' : `${photos.length}/2 photos`}</span></div>
     <input ref={uploadInput} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" tabIndex="-1" onChange={selectPhoto} aria-label="Upload a label photo" />
     <input ref={cameraInput} className="visually-hidden" type="file" accept="image/*" capture="environment" tabIndex="-1" onChange={selectPhoto} aria-label="Take a label photo" />
     {cameraOpen ? <div className="camera-live" onKeyDown={event => {
@@ -119,7 +118,6 @@ export default function ScanCameraView({
           <Icon name="scan" size={42} />
           <h2>{launcherMode ? 'Start with the front label.' : 'Start with a clear label.'}</h2>
           <p>{launcherMode ? <>Snap or upload the front of the product.<br />We’ll ask for the back image next.</> : <>Photograph the printed details.<br />You’ll review them before we check.</>}</p>
-          <span className="file-guidance">JPG, PNG or WebP · up to 12 MB</span>
         </div>}
       </div>
       {busy ? <div className="ocr-progress" role="status" aria-live="polite"><div><strong>{progress?.status || 'Preparing your photo'}</strong><span className="mono">{Math.round((progress?.progress || 0) * 100)}%</span></div><progress max="1" value={progress?.progress || 0} aria-label="Label reading progress" /><p>Reading on your device. The first scan may take a little longer.</p><button type="button" className="text-button" onClick={onCancel}>Cancel and type instead</button></div> : <div className="capture-actions">
@@ -128,6 +126,5 @@ export default function ScanCameraView({
       </div>}
     </>}
     {(cameraError || error) && <div className="inline-notice" role="alert"><Icon name="info" /><p>{cameraError || error}</p></div>}
-    <div className="privacy-line"><Icon name="lock" size={15} /><span>Your photo stays on this device and is discarded after the check.</span></div>
   </section>;
 }
