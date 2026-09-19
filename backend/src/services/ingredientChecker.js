@@ -1,31 +1,36 @@
-const MOCK_FLAGGED_SUBSTANCES = ['sibutramine', 'sildenafil', 'hydroquinone'];
+import { flaggedSubstances } from './referenceData.js';
+
+function normalize(value = '') {
+  return String(value).trim().toLowerCase();
+}
 
 export function checkIngredients(ingredients, now = new Date()) {
   if (!ingredients || ingredients.length === 0) {
     return {
       status: 'not_checked',
-      reason: 'No ingredient list provided.',
+      reason: 'No ingredient list was available to check.',
       checkedAt: now.toISOString(),
     };
   }
 
-  const flagged = ingredients.filter((i) =>
-    MOCK_FLAGGED_SUBSTANCES.includes(i.toLowerCase().trim())
-  );
+  const joined = ingredients.map(normalize).join(' | ');
+  const matchedRules = flaggedSubstances.rules.filter(rule => joined.includes(normalize(rule.term)));
 
-  if (flagged.length > 0) {
+  if (matchedRules.length > 0) {
     return {
       status: 'warning',
-      reason: `Flagged substance(s) found: ${flagged.join(', ')}.`,
-      source: 'mock-flagged-substance-list',
+      reason: matchedRules.map(rule => rule.reason).join(' '),
+      source: flaggedSubstances.meta?.sources?.[0] || 'Configured safety-rules dataset',
       checkedAt: now.toISOString(),
+      matchedTerms: matchedRules.map(rule => rule.term),
     };
   }
 
   return {
     status: 'match',
-    reason: 'No flagged substances found in provided ingredient list.',
-    source: 'mock-flagged-substance-list',
+    reason: 'No substance in the supplied ingredient text matched the current GenuineNG flagged-substance rules.',
+    source: flaggedSubstances.meta?.sources?.[0] || 'Configured safety-rules dataset',
+    coverageNote: flaggedSubstances.meta?.coverage || null,
     checkedAt: now.toISOString(),
   };
 }

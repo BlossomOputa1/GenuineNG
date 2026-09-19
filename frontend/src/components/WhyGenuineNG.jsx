@@ -57,7 +57,7 @@ export default function WhyGenuineNG({ navigate }) {
 
       <div className="reason-media-grid">
         <div className="reason-image-wrap">
-          <img src="/images/second-section-img.jpg" alt="" />
+          <img src="/images/second-section-img.webp" alt="" />
         </div>
 
         <div className="reason-stats" aria-label="Counterfeit product statistics">

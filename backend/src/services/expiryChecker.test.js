@@ -38,3 +38,9 @@ test('expiry date at end of month boundary', () => {
   const result = checkExpiry('2026-06-30', fixedNow);
   assert.equal(result.status, 'match');
 });
+
+
+test('impossible ISO calendar date returns unverified', () => {
+  const result = checkExpiry('2027-02-31', fixedNow);
+  assert.equal(result.status, 'unverified');
+});

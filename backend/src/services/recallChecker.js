@@ -1,46 +1,40 @@
-const MOCK_RECALLS = [
-  { batchNumber: 'B-2024-001', reason: 'Contamination reported.' },
-];
+import { recallReference } from './referenceData.js';
 
-const MOCK_CLEARED_BATCHES = [{ batchNumber: 'B-2024-050' }];
+function normalize(value = '') {
+  return String(value).trim().toUpperCase().replace(/\s+/g, ' ');
+}
 
-export function checkRecall(batchNumber, now = new Date()) {
+export function checkRecall(batchNumber, registrationNumber, now = new Date()) {
   if (!batchNumber || batchNumber.trim() === '') {
     return {
       status: 'not_checked',
-      reason: 'No batch number provided.',
+      reason: 'No batch number was available to check.',
       checkedAt: now.toISOString(),
     };
   }
 
-  const recalled = MOCK_RECALLS.find((r) => r.batchNumber === batchNumber);
+  const batch = normalize(batchNumber);
+  const registration = normalize(registrationNumber);
+  const recalled = recallReference.recalls.find(item => {
+    const sameBatch = normalize(item.batchNumber) === batch;
+    const sameRegistration = !item.registrationNumber || normalize(item.registrationNumber) === registration;
+    return sameBatch && sameRegistration;
+  });
 
   if (recalled) {
     return {
       status: 'warning',
-      reason: recalled.reason,
-      source: 'mock-recall-data',
-      checkedAt: now.toISOString(),
-    };
-  }
-
-  const cleared = MOCK_CLEARED_BATCHES.find(
-    (r) => r.batchNumber === batchNumber
-  );
-
-  if (cleared) {
-    return {
-      status: 'match',
-      reason: 'Batch reviewed and confirmed not recalled.',
-      source: 'mock-recall-data',
+      reason: recalled.reason || 'This batch appears in a sourced recall record.',
+      source: recalled.sourceUrl || 'Sourced recall record',
       checkedAt: now.toISOString(),
     };
   }
 
   return {
     status: 'not_checked',
-    reason:
-      'No recall record found in current dataset (not a confirmation of safety).',
+    reason: 'No matching recall was found in the current limited recall snapshot. This is not confirmation that the batch is safe.',
+    source: recallReference.meta?.source || null,
+    coverageNote: recallReference.meta?.coverage || null,
     checkedAt: now.toISOString(),
   };
 }

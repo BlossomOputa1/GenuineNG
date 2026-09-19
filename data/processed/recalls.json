@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "checkedAt": "2026-09-18",
+    "coverage": "Integration fixtures only. Absence from this file is not evidence that a batch is safe.",
+    "source": "team-approved-recall-import"
+  },
+  "recalls": [
+    {
+      "registrationNumber": "GN-DRINK-0002",
+      "batchNumber": "DEMO-RECALL-001",
+      "reason": "Integration fixture recall used to test warning UI.",
+      "sourceUrl": "internal-test-fixture"
+    }
+  ]
+}

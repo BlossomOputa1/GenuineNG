@@ -26,21 +26,6 @@ export default function ScanPage({ navigate, onBeginScan }) {
 
       <WhyGenuineNG navigate={navigate} />
 
-      <ol className="step-list" aria-label="How a product check works">
-        <li className="current">
-          <span className="step-number">01</span>
-          Add both sides
-        </li>
-        <li>
-          <span className="step-number">02</span>
-          Review details
-        </li>
-        <li>
-          <span className="step-number">03</span>
-          See checks
-        </li>
-      </ol>
-
       <div className="workspace-grid" id="scan-workspace">
         <div className="main-column">
           <ScanCameraView
@@ -90,8 +75,8 @@ export default function ScanPage({ navigate, onBeginScan }) {
                 <li>
                   <span className="guidance-number">03</span>
                   <div>
-                    <strong>Both sides are required in this prototype</strong>
-                    <p>Start with the front, then add a back image on the dedicated scan page.</p>
+                    <strong>Both sides are required for a Layer 1 check</strong>
+                    <p>Start with the front, then add the back image on the dedicated scan page.</p>
                   </div>
                 </li>
               </ol>
