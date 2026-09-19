@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import 'dotenv/config';
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
 import { errorHandler } from './middleware/errorHandler.js';
