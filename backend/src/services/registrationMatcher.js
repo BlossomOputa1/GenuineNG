@@ -1,74 +1,71 @@
-import { productReference } from './referenceData.js';
+import { findByRegistrationNumber, getDatasetInfo } from './referenceData.js';
+import { compareProductIdentity } from './geminiMatcher.js';
 
-function normalize(value = '') {
-  return String(value).trim().toUpperCase().replace(/\s+/g, ' ');
-}
+export async function checkRegistration(
+  { registrationNumber, productName, manufacturer },
+  now = new Date(),
+  deps = {}
+) {
+  const findRecord = deps.findRecord || findByRegistrationNumber;
+  const compareIdentity = deps.compareIdentity || compareProductIdentity;
+  const datasetInfo = deps.getDatasetInfo || getDatasetInfo;
 
-function normalizeLoose(value = '') {
-  return normalize(value).replace(/[^A-Z0-9]/g, '');
-}
-
-function looselyMatches(supplied, reference) {
-  const a = normalizeLoose(supplied);
-  const b = normalizeLoose(reference);
-  if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
-}
-
-export function checkRegistration(registrationNumber, productName, manufacturer, now = new Date()) {
   if (!registrationNumber || registrationNumber.trim() === '') {
     return {
       status: 'not_checked',
-      reason: 'No registration number was available to check.',
+      reason: 'No registration number provided.',
       checkedAt: now.toISOString(),
     };
   }
 
-  const normalizedReg = normalizeLoose(registrationNumber);
-  const record = productReference.products.find(
-    item => normalizeLoose(item.registrationNumber) === normalizedReg
-  );
+  const { generatedAt } = datasetInfo();
+  const record = findRecord(registrationNumber.trim());
 
   if (!record) {
     return {
       status: 'unverified',
-      reason: 'No matching registration record was found in the current GenuineNG reference snapshot.',
-      source: productReference.meta?.primarySource || 'Configured reference dataset',
+      reason: 'No matching registration record found.',
+      source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
-      coverageNote: productReference.meta?.coverage || null,
     };
   }
 
-  const productMismatch = !looselyMatches(productName, record.productName);
-  const manufacturerMismatch = !looselyMatches(manufacturer, record.manufacturer);
+  if (!productName || productName.trim() === '') {
+    return {
+      status: 'match',
+      reason: `Registration number is on record for ${record.manufacturer}. Product name wasn't provided, so name/manufacturer identity wasn't cross-checked.`,
+      source: `nafdac-greenbook-export (as of ${generatedAt})`,
+      checkedAt: now.toISOString(),
+    };
+  }
 
-  if (productMismatch || manufacturerMismatch) {
-    const mismatchParts = [];
-    if (productMismatch) mismatchParts.push('product name');
-    if (manufacturerMismatch) mismatchParts.push('manufacturer');
+  const identity = await compareIdentity(
+    { productName, manufacturer },
+    { productName: record.productName, manufacturer: record.manufacturer }
+  );
+
+  if (identity.matches === false) {
     return {
       status: 'warning',
-      reason: `The registration number is valid in the current reference snapshot, but the printed ${mismatchParts.join(' and ')} does not match the record for ${record.productName}.`,
-      source: record.sourceUrl,
+      reason: `This registration number is on record, but for a different product: "${record.productName}" (${record.manufacturer}). ${identity.reason}`,
+      source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
-      matchedRecord: {
-        productName: record.productName,
-        manufacturer: record.manufacturer,
-        registrationNumber: record.registrationNumber,
-      },
+    };
+  }
+
+  if (identity.matches === null) {
+    return {
+      status: 'match',
+      reason: `Registration number matches. Product/manufacturer identity check unavailable: ${identity.reason}`,
+      source: `nafdac-greenbook-export (as of ${generatedAt})`,
+      checkedAt: now.toISOString(),
     };
   }
 
   return {
     status: 'match',
-    reason: `The registration number, product name and manufacturer match the reference record for ${record.productName}.`,
-    source: record.sourceUrl,
+    reason: `Registered to ${record.manufacturer} as "${record.productName}".`,
+    source: `nafdac-greenbook-export (as of ${generatedAt})`,
     checkedAt: now.toISOString(),
-    matchedRecord: {
-      productName: record.productName,
-      manufacturer: record.manufacturer,
-      registrationNumber: record.registrationNumber,
-    },
-    coverageNote: productReference.meta?.coverage || null,
   };
 }
