@@ -83,61 +83,26 @@ export async function createScan(req, res) {
 
   const body = req.body;
 
-  // Explicit allow-list — never spread req.body directly. user_id comes
-  // only from the authenticated identity, never from the request.
-  const scanPayload = {
-    user_id: req.user.id,
-    matched_product_id: body.matched_product_id ?? null,
-    manufacturer_text: body.manufacturer_text ?? null,
-    registration_number: body.registration_number ?? null,
-    batch_number: body.batch_number ?? null,
-    expiry_date: body.expiry_date ?? null,
-    ingredients_text: body.ingredients_text ?? null,
-    result_summary: body.result_summary ?? null,
-  };
+  const { data: scan, error } = await req.supabase.rpc(
+    'create_scan_with_checks',
+    {
+      p_matched_product_id: body.matched_product_id ?? null,
+      p_manufacturer_text: body.manufacturer_text ?? null,
+      p_registration_number: body.registration_number ?? null,
+      p_batch_number: body.batch_number ?? null,
+      p_expiry_date: body.expiry_date ?? null,
+      p_ingredients_text: body.ingredients_text ?? null,
+      p_result_summary: body.result_summary ?? null,
+      p_checks: body.checks ?? null,
+    }
+  );
 
-  const { data: scan, error: scanError } = await req.supabase
-    .from('scans')
-    .insert(scanPayload)
-    .select()
-    .single();
-
-  if (scanError || !scan) {
+  if (error || !scan) {
     return res
       .status(500)
       .json({
         error: { code: 'SCAN_CREATE_FAILED', message: 'Could not save scan.' },
       });
-  }
-
-  if (Array.isArray(body.checks) && body.checks.length > 0) {
-    const checkRows = body.checks.map((c) => ({
-      scan_id: scan.id,
-      check_type: c.check_type,
-      outcome: c.outcome,
-      reason: c.reason ?? null,
-      source_name: c.source_name ?? null,
-      source_url: c.source_url ?? null,
-      source_last_checked_at: c.source_last_checked_at ?? null,
-    }));
-
-    const { error: checksError } = await req.supabase
-      .from('scan_checks')
-      .insert(checkRows);
-
-    if (checksError) {
-      // Known limitation: not wrapped in a DB transaction yet — the scan
-      // row can exist without its checks if this insert fails. Acceptable
-      // for MVP scope; a Postgres function would make this atomic later.
-      return res
-        .status(500)
-        .json({
-          error: {
-            code: 'CHECKS_CREATE_FAILED',
-            message: 'Scan saved, but check details failed to save.',
-          },
-        });
-    }
   }
 
   res.status(201).json(scan);
