@@ -8,6 +8,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -24,20 +27,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./frontend
         run: npm ci
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
       - name: Pull Vercel Environment Info
-        working-directory: ./frontend
         run: vercel pull --yes --environment=production
 
       - name: Build Project Artifacts
-        working-directory: ./frontend
         run: vercel build --prod
 
       - name: Deploy to Vercel
-        working-directory: ./frontend
         run: vercel deploy --prebuilt --prod
