@@ -1,33 +1,74 @@
-const MOCK_REGISTRATIONS = [
-  { registrationNumber: 'NAFDAC-A4-1234', manufacturer: 'Example Foods Ltd' },
-  { registrationNumber: 'NAFDAC-B7-5678', manufacturer: 'Sample Beverages Co' },
-];
+import { productReference } from './referenceData.js';
 
-export function checkRegistration(registrationNumber, now = new Date()) {
+function normalize(value = '') {
+  return String(value).trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+function normalizeLoose(value = '') {
+  return normalize(value).replace(/[^A-Z0-9]/g, '');
+}
+
+function looselyMatches(supplied, reference) {
+  const a = normalizeLoose(supplied);
+  const b = normalizeLoose(reference);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+export function checkRegistration(registrationNumber, productName, manufacturer, now = new Date()) {
   if (!registrationNumber || registrationNumber.trim() === '') {
     return {
       status: 'not_checked',
-      reason: 'No registration number provided.',
+      reason: 'No registration number was available to check.',
       checkedAt: now.toISOString(),
     };
   }
 
-  const record = MOCK_REGISTRATIONS.find(
-    (r) => r.registrationNumber === registrationNumber
+  const normalizedReg = normalizeLoose(registrationNumber);
+  const record = productReference.products.find(
+    item => normalizeLoose(item.registrationNumber) === normalizedReg
   );
 
   if (!record) {
     return {
       status: 'unverified',
-      reason: 'No matching registration record found.',
+      reason: 'No matching registration record was found in the current GenuineNG reference snapshot.',
+      source: productReference.meta?.primarySource || 'Configured reference dataset',
       checkedAt: now.toISOString(),
+      coverageNote: productReference.meta?.coverage || null,
+    };
+  }
+
+  const productMismatch = !looselyMatches(productName, record.productName);
+  const manufacturerMismatch = !looselyMatches(manufacturer, record.manufacturer);
+
+  if (productMismatch || manufacturerMismatch) {
+    const mismatchParts = [];
+    if (productMismatch) mismatchParts.push('product name');
+    if (manufacturerMismatch) mismatchParts.push('manufacturer');
+    return {
+      status: 'warning',
+      reason: `The registration number is valid in the current reference snapshot, but the printed ${mismatchParts.join(' and ')} does not match the record for ${record.productName}.`,
+      source: record.sourceUrl,
+      checkedAt: now.toISOString(),
+      matchedRecord: {
+        productName: record.productName,
+        manufacturer: record.manufacturer,
+        registrationNumber: record.registrationNumber,
+      },
     };
   }
 
   return {
     status: 'match',
-    reason: `Registered to ${record.manufacturer}.`,
-    source: 'mock-reference-data',
+    reason: `The registration number, product name and manufacturer match the reference record for ${record.productName}.`,
+    source: record.sourceUrl,
     checkedAt: now.toISOString(),
+    matchedRecord: {
+      productName: record.productName,
+      manufacturer: record.manufacturer,
+      registrationNumber: record.registrationNumber,
+    },
+    coverageNote: productReference.meta?.coverage || null,
   };
 }

@@ -1,8 +1,6 @@
 /**
- * Validates the shape/type of incoming label data before it reaches
- * the service layer. This is format/type validation only — it does
- * NOT verify authenticity. A syntactically valid registration number
- * can still fail verification downstream.
+ * Validates the shape/type of incoming label data before it reaches the
+ * service layer. This is format/type validation only — it does NOT verify authenticity.
  */
 export function validateLabelInput(body) {
   const errors = [];
@@ -12,6 +10,7 @@ export function validateLabelInput(body) {
   }
 
   const {
+    productName,
     manufacturer,
     registrationNumber,
     batchNumber,
@@ -19,44 +18,41 @@ export function validateLabelInput(body) {
     ingredients,
   } = body;
 
-  if (
-    manufacturer !== undefined &&
-    manufacturer !== null &&
-    typeof manufacturer !== 'string'
-  ) {
-    errors.push('manufacturer must be a string or null.');
+  for (const [name, value] of Object.entries({
+    productName,
+    manufacturer,
+    registrationNumber,
+    batchNumber,
+  })) {
+    if (value !== undefined && value !== null && typeof value !== 'string') {
+      errors.push(`${name} must be a string or null.`);
+    }
   }
 
-  if (
-    registrationNumber !== undefined &&
-    registrationNumber !== null &&
-    typeof registrationNumber !== 'string'
-  ) {
-    errors.push('registrationNumber must be a string or null.');
+  for (const [name, value] of Object.entries({
+    productName,
+    manufacturer,
+    registrationNumber,
+  })) {
+    if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+      errors.push(`${name} is required.`);
+    }
   }
 
-  if (
-    batchNumber !== undefined &&
-    batchNumber !== null &&
-    typeof batchNumber !== 'string'
-  ) {
-    errors.push('batchNumber must be a string or null.');
-  }
-
-  if (expiryDate !== undefined && expiryDate !== null) {
-    if (
-      typeof expiryDate !== 'string' ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)
-    ) {
+  if (expiryDate !== undefined && expiryDate !== null && expiryDate !== '') {
+    if (typeof expiryDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
       errors.push('expiryDate must be a string in YYYY-MM-DD format, or null.');
+    } else {
+      const [year, month, day] = expiryDate.split('-').map(Number);
+      const candidate = new Date(Date.UTC(year, month - 1, day));
+      if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) {
+        errors.push('expiryDate must be a real calendar date.');
+      }
     }
   }
 
   if (ingredients !== undefined && ingredients !== null) {
-    if (
-      !Array.isArray(ingredients) ||
-      ingredients.some((i) => typeof i !== 'string')
-    ) {
+    if (!Array.isArray(ingredients) || ingredients.some(item => typeof item !== 'string')) {
       errors.push('ingredients must be an array of strings, or null.');
     }
   }
