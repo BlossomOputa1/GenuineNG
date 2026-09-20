@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
-
+// import { supabase } from '../config/supabaseClient';
 // Verifies JWTs via Supabase's Auth server. Uses the publishable key —
 // verification comes from the Auth API itself, not key privilege,
 // so the secret key is never needed here.

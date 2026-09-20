@@ -11,9 +11,9 @@ const supabaseSecretKey = (
 // @BlossomOputa1: i was having issues with render so i have to add this for error handling
 if (!supabaseUrl || !supabaseSecretKey) {
   console.error('Enivironment check failed on Render:');
-  console.error('- SUPABASE_URL found:' Boolean(supabaseUrl));
+  console.error('- SUPABASE_URL found:', Boolean(supabaseUrl));
   console.error('- Secret key found:', Boolean(supabaseSecretKey));
-  console.error('- Configured Supabase Keys:'
+  console.error('- Configured Supabase Keys:',
     Object.keys(process.env).filter(k => k. toUpperCase().includes('SUPABASE'))
   );
   throw new Error('Missing Supabase configuration. Check backend/.env.');
