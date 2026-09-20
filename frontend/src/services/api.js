@@ -43,6 +43,38 @@ export async function runLabelVerification(fields, signal) {
   return { ...body, normalization, submitted: payload };
 }
 
+export async function extractLabelFields(frontBlob, backBlob, signal) {
+  const form = new FormData();
+  if (frontBlob) form.append('front', frontBlob, 'front.webp');
+  if (backBlob) form.append('back', backBlob, 'back.webp');
+
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/extract-label`, {
+      method: 'POST',
+      body: form,
+      signal: combined,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    if (err?.name === 'TimeoutError') {
+      throw new Error('The extraction service is taking too long to respond. It may be waking up — please try again in a moment.');
+    }
+    throw new Error('Could not reach the extraction service. Check your internet connection and try again.');
+  }
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = body?.details?.join(' ') || body?.reason || `Label extraction request failed (${response.status}).`;
+    throw new Error(detail);
+  }
+
+  return body;
+}
+
 export async function checkBackendHealth(signal) {
   const response = await fetch(`${API_BASE_URL}/api/health`, { signal });
   if (!response.ok) throw new Error('Backend health check failed.');
