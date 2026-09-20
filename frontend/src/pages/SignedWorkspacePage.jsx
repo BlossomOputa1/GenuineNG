@@ -470,6 +470,7 @@ export default function SignedWorkspacePage({
               previousScans={currentThread?.scans || []}
               onResultComplete={completeScan}
               mode="signed"
+              onCancelPendingScan={() => navigate("/app")}
               conversationId={threadId}
             />
           )}

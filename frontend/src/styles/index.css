@@ -6945,3 +6945,391 @@ body {
   opacity: 1;
   transform: translate(-5px, -1px) !important;
 }
+
+/* ===== Layer 1 Gemini extraction + two-check result alignment ===== */
+.extraction-review-backdrop {
+  overflow-y: auto;
+}
+
+.extraction-review-modal {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 30px;
+}
+
+.extraction-review-heading {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-right: 40px;
+  margin-bottom: 8px;
+}
+
+.extraction-review-heading .gn-modal-icon {
+  flex: 0 0 auto;
+  margin: 0;
+  background: var(--reference-lime);
+  color: var(--reference-deep-green);
+}
+
+.extraction-review-heading h2 {
+  margin: 4px 0 0;
+}
+
+.review-form-compact {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.review-form-compact .panel-heading {
+  display: none;
+}
+
+.review-form-compact .review-intro {
+  padding: 12px 0 0;
+}
+
+.review-form-compact .review-intro h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.review-form-compact .field-grid {
+  margin: 18px 0 22px;
+  gap: 16px;
+}
+
+.review-form-compact .review-footer {
+  padding-top: 0;
+}
+
+.review-form-compact .review-footer .button-row {
+  justify-content: flex-end;
+}
+
+.demo-review-backdrop-card {
+  min-height: 260px;
+}
+
+.verification-completion {
+  margin: 26px 0;
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #cbd8ce;
+  border-radius: 20px;
+  background: #f6faf6;
+}
+
+.verification-completion-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--reference-lime);
+  color: var(--reference-deep-green);
+}
+
+.verification-completion h2 {
+  margin-top: 3px;
+  font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+}
+
+.verification-completion p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.6;
+}
+
+.verification-complete-warning,
+.verification-partial-warning {
+  border-color: #efc56c;
+  background: #fff8e8;
+}
+
+.verification-complete-warning .verification-completion-icon,
+.verification-partial-warning .verification-completion-icon {
+  background: #ffe4a5;
+  color: #7a5300;
+}
+
+.verification-partial,
+.verification-insufficient {
+  background: #f3f5f4;
+}
+
+.verification-insufficient .verification-completion-icon {
+  background: #e2e8e4;
+  color: #526058;
+}
+
+@media (max-width: 680px) {
+  .extraction-review-modal {
+    max-height: calc(100vh - 24px);
+    padding: 22px 18px;
+  }
+
+  .extraction-review-heading {
+    align-items: flex-start;
+  }
+
+  .review-form-compact .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .review-form-compact .field-wide {
+    grid-column: auto;
+  }
+
+  .verification-completion {
+    align-items: flex-start;
+    padding: 18px;
+  }
+}
+
+
+/* ===== Result verdict + status card refinement ===== */
+.demo-check-card.status-match {
+  border-color: #b9dbc4;
+  background: #eef8f1;
+}
+
+.demo-check-card.status-warning {
+  border-color: #e8b0aa;
+  background: #fdeceb;
+}
+
+.demo-check-card.status-unverified {
+  border-color: #e6cf78;
+  background: #fff7d9;
+}
+
+.demo-check-card.status-not_checked {
+  border-color: #d5ddd7;
+  background: #f3f5f4;
+}
+
+.demo-status.warning {
+  background: #f6d7d3;
+  color: #8b3026;
+}
+
+.demo-status.unverified {
+  background: #f4df98;
+  color: #654d00;
+}
+
+.demo-status.not_checked {
+  background: #e3e8e4;
+  color: #59645d;
+}
+
+.demo-verdict {
+  margin-top: 28px;
+  padding: 22px;
+  border-radius: 18px;
+  background: #f3f7f3;
+}
+
+.demo-verdict > p {
+  margin-top: 9px;
+  color: var(--reference-deep-green);
+  font-size: .94rem;
+  line-height: 1.7;
+}
+
+.result-footer-row {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.result-footer-row .demo-result-actions.result-icon-actions {
+  margin-top: 0;
+}
+
+.result-time-footer {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.review-form-compact .review-footer .button-row {
+  justify-content: flex-end;
+}
+
+@media (max-width: 520px) {
+  .result-footer-row {
+    align-items: flex-end;
+  }
+
+  .result-time-footer {
+    width: auto;
+    margin-left: auto;
+    font-size: .68rem;
+  }
+}
+
+
+/* ===== Responsive result action row + matched status emphasis ===== */
+.demo-status.match {
+  background: var(--reference-deep-green);
+  color: #fff;
+}
+
+/* Keep compact result actions horizontal at every width. */
+.demo-result-actions.result-icon-actions {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: auto;
+}
+
+@media (max-width: 520px) {
+  .result-footer-row {
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .result-footer-row .demo-result-actions.result-icon-actions {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .result-icon-button {
+    flex: 0 0 34px;
+  }
+}
+
+
+/* ===== Layer 1 partial verification emphasis ===== */
+.verification-partial {
+  border-color: var(--reference-deep-green);
+  background: var(--reference-deep-green);
+  color: #fff;
+}
+
+.verification-partial .eyebrow {
+  color: var(--reference-lime-soft);
+}
+
+.verification-partial h2 {
+  color: #fff;
+}
+
+.verification-partial p {
+  color: rgba(255,255,255,.82);
+}
+
+.verification-partial .verification-completion-icon {
+  background: var(--reference-lime);
+  color: var(--reference-deep-green);
+}
+
+
+/* ===== Layer 1 strong verification states + cleaner modal actions ===== */
+/* Popups should not draw a divider line above their action controls. */
+.gn-modal .review-footer,
+.gn-modal .gn-modal-actions {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Strong, filled completion states rather than pale summary cards. */
+.verification-complete {
+  border-color: var(--reference-deep-green);
+  background: var(--reference-deep-green);
+  color: #fff;
+}
+
+.verification-complete .eyebrow,
+.verification-complete h2 {
+  color: #fff;
+}
+
+.verification-complete p {
+  color: rgba(255,255,255,.84);
+}
+
+.verification-complete .verification-completion-icon {
+  background: var(--reference-lime);
+  color: var(--reference-deep-green);
+}
+
+.verification-complete-warning,
+.verification-partial-warning {
+  border-color: #782d27;
+  background: #782d27;
+  color: #fff;
+}
+
+.verification-complete-warning .eyebrow,
+.verification-complete-warning h2,
+.verification-partial-warning .eyebrow,
+.verification-partial-warning h2 {
+  color: #fff;
+}
+
+.verification-complete-warning p,
+.verification-partial-warning p {
+  color: rgba(255,255,255,.84);
+}
+
+.verification-complete-warning .verification-completion-icon,
+.verification-partial-warning .verification-completion-icon {
+  background: #ffd8cf;
+  color: #782d27;
+}
+
+.verification-partial {
+  border-color: #8a6200;
+  background: #8a6200;
+  color: #fff;
+}
+
+.verification-partial .eyebrow,
+.verification-partial h2 {
+  color: #fff;
+}
+
+.verification-partial p {
+  color: rgba(255,255,255,.86);
+}
+
+.verification-partial .verification-completion-icon {
+  background: #ffe39a;
+  color: #604200;
+}
+
+.verification-insufficient {
+  border-color: #4f5e55;
+  background: #4f5e55;
+  color: #fff;
+}
+
+.verification-insufficient .eyebrow,
+.verification-insufficient h2 {
+  color: #fff;
+}
+
+.verification-insufficient p {
+  color: rgba(255,255,255,.82);
+}
+
+.verification-insufficient .verification-completion-icon {
+  background: #e5ebe7;
+  color: #405048;
+}

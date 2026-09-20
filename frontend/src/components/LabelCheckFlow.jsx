@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
-import FieldReviewForm from './FieldReviewForm';
+import ExtractionReviewDialog from './ExtractionReviewDialog';
 import OcrFailureDialog from './OcrFailureDialog';
 import ResultView from './ResultView';
 import { preprocessImage } from '../ocr/imagePreprocess';
-import { readTwoLabelImages } from '../ocr/ocrWorker';
-import { runLabelVerification } from '../services/api';
+import { extractLabelFields, runLabelVerification } from '../services/api';
 import { buildResultRecord } from '../services/resultModel';
 import { normalizeExpiryDate } from '../services/labelPayload';
 
-const emptyFields = { productName: '', manufacturer: '', registrationNumber: '', batchNumber: '', expiryDate: '', ingredients: '' };
+const emptyFields = { productName: '', manufacturer: '', registrationNumber: '', expiryDate: '' };
 const requiredIdentityKeys = ['productName', 'manufacturer', 'registrationNumber'];
 
 function missingRequiredIdentity(fields = {}) {
@@ -42,8 +41,8 @@ function PhotoSlot({ slot, label, helper, photo, busy, onPick, onRemove }) {
   );
 }
 
-function Processing({ title, copy = '', progress }) {
-  return <div className="demo-processing" role="status" aria-live="polite"><div className="demo-spinner" aria-hidden="true" /><span className="eyebrow">PROCESSING</span><h2>{title}</h2>{copy ? <p>{copy}</p> : null}<div className="demo-progress-line"><span style={{ width: `${Math.max(8, Math.round((progress || 0) * 100))}%` }} /></div></div>;
+function Processing({ title }) {
+  return <div className="demo-processing" role="status" aria-live="polite"><div className="demo-spinner" aria-hidden="true" /><span className="eyebrow">PROCESSING</span><h2>{title}</h2><div className="demo-progress-line"><span /></div></div>;
 }
 
 function PreviousScan({ scan, index, onEdit }) {
@@ -55,38 +54,38 @@ function PreviousScan({ scan, index, onEdit }) {
   );
 }
 
-export default function LabelCheckFlow({ initialPhotoFile = null, previousScans = [], onResultComplete, mode = 'guest', onLeave, conversationId = null }) {
+export default function LabelCheckFlow({ initialPhotoFile = null, previousScans = [], onResultComplete, mode = 'guest', onLeave, onCancelPendingScan = null, conversationId = null }) {
   const [stage, setStage] = useState('capture');
   const [photos, setPhotos] = useState({ front: null, back: null });
   const [fields, setFields] = useState(emptyFields);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrFailureOpen, setOcrFailureOpen] = useState(false);
-  const [ocrPaused, setOcrPaused] = useState(false);
-  const [partialOcrFields, setPartialOcrFields] = useState(emptyFields);
+  const [extractionFailureOpen, setExtractionFailureOpen] = useState(false);
+  const [extractionPaused, setExtractionPaused] = useState(false);
+  const [partialFields, setPartialFields] = useState(emptyFields);
   const [editingSavedScan, setEditingSavedScan] = useState(null);
   const initialHandled = useRef(false);
-  const ocrAbort = useRef(null);
+  const extractAbort = useRef(null);
   const verifyAbort = useRef(null);
   const conversationRef = useRef(conversationId);
   const photosRef = useRef(photos);
 
   const visiblePrevious = useMemo(() => previousScans.filter(scan => scan.id !== result?.id), [previousScans, result?.id]);
+  const reviewOpen = stage === 'review' || stage === 'review_saved';
 
   function releasePhoto(photo) { if (photo?.url) URL.revokeObjectURL(photo.url); }
   function clearPhotos() { setPhotos(current => { releasePhoto(current.front); releasePhoto(current.back); return { front: null, back: null }; }); }
 
   useEffect(() => { photosRef.current = photos; }, [photos]);
-  useEffect(() => () => { ocrAbort.current?.abort(); verifyAbort.current?.abort(); releasePhoto(photosRef.current.front); releasePhoto(photosRef.current.back); }, []);
+  useEffect(() => () => { extractAbort.current?.abort(); verifyAbort.current?.abort(); releasePhoto(photosRef.current.front); releasePhoto(photosRef.current.back); }, []);
 
   useEffect(() => {
     const previous = conversationRef.current;
     const switchedExistingSession = Boolean(previous && conversationId && previous !== conversationId);
     const startedNewSession = Boolean(previous && !conversationId);
     if (switchedExistingSession || startedNewSession) {
-      ocrAbort.current?.abort(); verifyAbort.current?.abort(); clearPhotos(); setFields(emptyFields); setResult(null); setError(''); setStage('capture'); setEditingSavedScan(null); initialHandled.current = false;
+      extractAbort.current?.abort(); verifyAbort.current?.abort(); clearPhotos(); setFields(emptyFields); setResult(null); setError(''); setStage('capture'); setEditingSavedScan(null); setExtractionPaused(false); initialHandled.current = false;
     }
     conversationRef.current = conversationId;
   }, [conversationId]);
@@ -95,9 +94,9 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
     setBusy(true); setError('');
     try {
       const blob = await preprocessImage(file);
-      const photo = { id: crypto.randomUUID(), fileName: file.name || `${slot}.jpg`, blob, url: URL.createObjectURL(blob) };
+      const photo = { id: crypto.randomUUID(), fileName: file.name || `${slot}.webp`, blob, url: URL.createObjectURL(blob) };
       setPhotos(current => { releasePhoto(current[slot]); return { ...current, [slot]: photo }; });
-      setOcrPaused(false);
+      setExtractionPaused(false);
       setEditingSavedScan(null);
     } catch (problem) { setError(problem?.message || 'GenuineNG could not open this image.'); }
     finally { setBusy(false); }
@@ -112,6 +111,15 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
       setError('Product name / variant, manufacturer and NAFDAC registration number are required.');
       setStage(editingSavedScan?.id ? 'review_saved' : 'review');
       return;
+    }
+
+    if (fieldValues.expiryDate) {
+      try { normalizeExpiryDate(fieldValues.expiryDate); }
+      catch (problem) {
+        setError(problem.message);
+        setStage(editingSavedScan?.id ? 'review_saved' : 'review');
+        return;
+      }
     }
 
     verifyAbort.current?.abort();
@@ -141,70 +149,93 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
   }
 
   useEffect(() => {
-    if (stage !== 'capture' || busy || ocrPaused || !photos.front || !photos.back) return;
+    if (stage !== 'capture' || busy || extractionPaused || !photos.front || !photos.back) return;
+
     const controller = new AbortController();
-    ocrAbort.current = controller;
-    setStage('reading'); setError(''); setOcrProgress(0.02);
-    readTwoLabelImages(photos.front.blob, photos.back.blob, { signal: controller.signal, onProgress: item => setOcrProgress(item.progress || 0) })
+    extractAbort.current = controller;
+    setStage('reading');
+    setError('');
+
+    extractLabelFields(photos.front.blob, photos.back.blob, controller.signal)
       .then(output => {
         if (controller.signal.aborted) return;
-        const extracted = { ...emptyFields, ...output.fields };
-        setPartialOcrFields(extracted);
-        setOcrProgress(1);
-        if (!output.enoughSignal) {
-          setFields(extracted);
-          setStage('ocr_failed');
-          setOcrFailureOpen(true);
+        const extracted = {
+          ...emptyFields,
+          ...(output?.fields || {}),
+          productName: output?.fields?.productName || '',
+          manufacturer: output?.fields?.manufacturer || '',
+          registrationNumber: output?.fields?.registrationNumber || '',
+          expiryDate: output?.fields?.expiryDate || '',
+        };
+        setPartialFields(extracted);
+        setFields(extracted);
+
+        if (output?.status !== 'completed' || missingRequiredIdentity(extracted).length) {
+          setStage('capture');
+          setExtractionPaused(true);
+          setExtractionFailureOpen(true);
           return;
         }
 
-        const readyForCheck = { ...extracted };
-        if (readyForCheck.expiryDate) {
-          try { normalizeExpiryDate(readyForCheck.expiryDate); }
-          catch { readyForCheck.expiryDate = ''; }
-        }
-        setFields(readyForCheck);
-        // Normal scan path: once the three required identity details are captured,
-        // go straight to verification and then the result. Optional OCR fields never block it.
-        runCheck(readyForCheck);
+        // Always stop for human confirmation before any verification request.
+        setStage('review');
       })
       .catch(problem => {
         if (problem?.name === 'AbortError') return;
-        setError(problem?.message || 'OCR could not read the images.');
-        setStage('ocr_failed');
-        setOcrFailureOpen(true);
+        setPartialFields(emptyFields);
+        setFields(emptyFields);
+        setError(problem?.message || 'GenuineNG could not read these images.');
+        setStage('capture');
+        setExtractionPaused(true);
+        setExtractionFailureOpen(true);
       });
-  }, [stage, busy, ocrPaused, photos.front?.id, photos.back?.id]);
+  }, [stage, busy, extractionPaused, photos.front?.id, photos.back?.id]);
 
-  function removePhoto(slot) { setPhotos(current => { releasePhoto(current[slot]); return { ...current, [slot]: null }; }); setOcrPaused(false); setError(''); }
-  function retakePhotos() { setOcrFailureOpen(false); setOcrPaused(false); clearPhotos(); setFields(emptyFields); setPartialOcrFields(emptyFields); setError(''); setStage('capture'); }
-  function closeOcrFailure() { setOcrFailureOpen(false); setOcrPaused(true); setError(''); setStage('capture'); }
-  function enterManually() { setOcrFailureOpen(false); setOcrPaused(false); setFields(partialOcrFields); setError(''); setStage('review'); }
+  function removePhoto(slot) { setPhotos(current => { releasePhoto(current[slot]); return { ...current, [slot]: null }; }); setExtractionPaused(false); setError(''); }
+  function retakePhotos() { setExtractionFailureOpen(false); setExtractionPaused(false); clearPhotos(); setFields(emptyFields); setPartialFields(emptyFields); setError(''); setStage('capture'); }
+  function closeExtractionFailure() { setExtractionFailureOpen(false); setExtractionPaused(true); setError(''); setStage('capture'); }
+  function enterManually() { setExtractionFailureOpen(false); setExtractionPaused(true); setFields({ ...emptyFields, ...partialFields }); setError(''); setStage('review'); }
 
   function editCurrentDetails() { setEditingSavedScan(result); setFields({ ...emptyFields, ...result.fields }); setError(''); setStage(result?.stored ? 'review_saved' : 'review'); }
   function editSavedScan(scan) { clearPhotos(); setFields({ ...emptyFields, ...scan.fields }); setResult(scan); setEditingSavedScan(scan); setError(''); setStage('review_saved'); }
-  function newScan() { ocrAbort.current?.abort(); verifyAbort.current?.abort(); setOcrPaused(false); clearPhotos(); setFields(emptyFields); setResult(null); setEditingSavedScan(null); setError(''); setStage('capture'); }
+  function cancelEdit() { if (!editingSavedScan) return; setFields({ ...emptyFields, ...editingSavedScan.fields }); setResult(editingSavedScan); setEditingSavedScan(null); setError(''); setStage('result'); }
+  function newScan() { extractAbort.current?.abort(); verifyAbort.current?.abort(); setExtractionPaused(false); clearPhotos(); setFields(emptyFields); setPartialFields(emptyFields); setResult(null); setEditingSavedScan(null); setError(''); setStage('capture'); }
+  function cancelPendingReview() {
+    newScan();
+    onCancelPendingScan?.();
+  }
 
   return <section className={`demo-scan-flow ${mode === 'signed' ? 'signed-scan-flow' : ''}`}>
     {visiblePrevious.length > 0 && <div className="demo-thread-history" aria-label="Earlier checks in this session">{visiblePrevious.map((scan, index) => <PreviousScan key={scan.id} scan={scan} index={index} onEdit={editSavedScan} />)}</div>}
 
     {stage === 'capture' && <div className="demo-stage-card demo-capture-stage">
-      <div className={`demo-stage-heading ${mode === 'signed' && !visiblePrevious.length ? 'signed-capture-heading' : ''}`}><div>{!(mode === 'signed' && !visiblePrevious.length) && <span className="eyebrow">TWO-SIDE PRODUCT CHECK</span>}<h1>{mode === 'signed' && !visiblePrevious.length ? 'What are we checking today?' : 'Show us both sides.'}</h1><p>Add a clear front image and a clear back image.</p></div>{mode === 'guest' && onLeave && <button type="button" className="text-button" onClick={onLeave}><Icon name="back" size={16} /> Back to main</button>}</div>
-      <div className="demo-photo-grid"><PhotoSlot slot="front" label="Front image" helper="Capture the product name and main label clearly." photo={photos.front} busy={busy} onPick={preparePhoto} onRemove={removePhoto} /><PhotoSlot slot="back" label="Back image" helper="Capture the registration number, batch, expiry and ingredients." photo={photos.back} busy={busy} onPick={preparePhoto} onRemove={removePhoto} /></div>
+      <div className={`demo-stage-heading ${mode === 'signed' && !visiblePrevious.length ? 'signed-capture-heading' : ''}`}><div>{!(mode === 'signed' && !visiblePrevious.length) && <span className="eyebrow">PRODUCT LABEL CHECK</span>}<h1>{mode === 'signed' && !visiblePrevious.length ? 'What are we checking today?' : 'Show us both sides.'}</h1><p>Add a clear front image and a clear back image.</p></div>{mode === 'guest' && onLeave && <button type="button" className="text-button" onClick={onLeave}><Icon name="back" size={16} /> Back to main</button>}</div>
+      <div className="demo-photo-grid"><PhotoSlot slot="front" label="Front image" helper="Capture the product name and main label clearly." photo={photos.front} busy={busy} onPick={preparePhoto} onRemove={removePhoto} /><PhotoSlot slot="back" label="Back image" helper="Capture the NAFDAC number, manufacturer and expiry details clearly." photo={photos.back} busy={busy} onPick={preparePhoto} onRemove={removePhoto} /></div>
       {error && <div className="inline-notice demo-image-error" role="alert"><Icon name="info" /><div><strong>We couldn’t use that image.</strong><p>{error}</p></div></div>}
     </div>}
 
-    {(stage === 'reading' || stage === 'ocr_failed') && <div className="demo-stage-card"><div className="demo-result-images compact"><img src={photos.front?.url} alt="Front product preview" /><img src={photos.back?.url} alt="Back product preview" /></div>{stage === 'reading' && <Processing title="Reading the printed details…" progress={ocrProgress} />}</div>}
+    {stage === 'reading' && <div className="demo-stage-card"><div className="demo-result-images compact"><img src={photos.front?.url} alt="Front product preview" /><img src={photos.back?.url} alt="Back product preview" /></div><Processing title="Reading the label details…" /></div>}
 
-    {(stage === 'review' || stage === 'review_saved') && <div className="demo-stage-card demo-review-stage">
-      {stage === 'review' && photos.front?.url && photos.back?.url ? <div className="demo-result-images"><figure><img src={photos.front.url} alt="Front product preview" /><figcaption>Front image</figcaption></figure><figure><img src={photos.back.url} alt="Back product preview" /><figcaption>Back image</figcaption></figure></div> : <div className="saved-photo-note"><Icon name="info" size={16} /><span>You’re editing a saved check. The original photos were not stored.</span></div>}
-      <FieldReviewForm fields={fields} onChange={(key, value) => { setFields(current => ({ ...current, [key]: value })); setError(''); }} onSubmit={() => runCheck(fields)} busy={false} error={error} savedEdit={stage === 'review_saved'} />
+    {reviewOpen && photos.front?.url && photos.back?.url && <div className="demo-stage-card demo-review-backdrop-card">
+      <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" /><img src={photos.back.url} alt="Back product preview" /></div>
     </div>}
 
-    {stage === 'checking' && <div className="demo-stage-card">{photos.front?.url && photos.back?.url && <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" /><img src={photos.back.url} alt="Back product preview" /></div>}<Processing title="Checking available records…" copy="Registration, expiry, recall and ingredient checks are running independently." progress={0.7} /></div>}
+    {stage === 'checking' && <div className="demo-stage-card">{photos.front?.url && photos.back?.url && <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" /><img src={photos.back.url} alt="Back product preview" /></div>}<Processing title="Checking the registration and expiry…" /></div>}
 
     {stage === 'result' && result && <ResultView result={result} photos={photos} onNewScan={newScan} onEdit={editCurrentDetails} />}
 
-    <OcrFailureDialog open={ocrFailureOpen} onRetake={retakePhotos} onManual={enterManually} onClose={closeOcrFailure} />
+    <ExtractionReviewDialog
+      open={reviewOpen}
+      fields={fields}
+      onChange={(key, value) => { setFields(current => ({ ...current, [key]: value })); setError(''); }}
+      onContinue={() => runCheck(fields)}
+      onClose={editingSavedScan ? cancelEdit : undefined}
+      onCancel={editingSavedScan ? cancelEdit : cancelPendingReview}
+      busy={false}
+      error={error}
+      savedEdit={stage === 'review_saved'}
+    />
+
+    <OcrFailureDialog open={extractionFailureOpen} onRetake={retakePhotos} onManual={enterManually} onClose={closeExtractionFailure} />
   </section>;
 }
