@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured } from './supabase';
+import { deriveCompletionState, verdictForChecks } from './resultModel';
 
 function requireSupabase() {
   if (!supabaseConfigured || !supabase) throw new Error('Supabase is not configured.');
@@ -7,17 +8,18 @@ function requireSupabase() {
 
 function scanRowToResult(scan) {
   const checks = (scan.scan_checks || [])
+    .filter(check => check.check_key === 'registration' || check.check_key === 'expiry')
     .map(check => ({
       key: check.check_key,
-      title: check.check_key === 'registration' ? 'Registration record' : check.check_key === 'expiry' ? 'Expiry date' : check.check_key === 'recall' ? 'Batch recall' : check.check_key === 'ingredients' ? 'Ingredient flags' : check.check_key,
+      title: check.check_key === 'registration' ? 'Registration record' : 'Expiry date',
       status: check.status,
       reason: check.reason,
       source: check.source,
-      coverageNote: check.coverage_note,
       checkedAt: check.checked_at,
     }))
-    .sort((a, b) => ['registration', 'expiry', 'recall', 'ingredients'].indexOf(a.key) - ['registration', 'expiry', 'recall', 'ingredients'].indexOf(b.key));
+    .sort((a, b) => ['registration', 'expiry'].indexOf(a.key) - ['registration', 'expiry'].indexOf(b.key));
 
+  const completion = deriveCompletionState(checks);
   return {
     id: scan.id,
     checkedAt: scan.checked_at,
@@ -25,20 +27,21 @@ function scanRowToResult(scan) {
       productName: scan.product_name || '',
       manufacturer: scan.manufacturer || '',
       registrationNumber: scan.registration_number || '',
-      batchNumber: scan.batch_number || '',
       expiryDate: scan.expiry_printed || '',
-      ingredients: (scan.ingredients || []).join(', '),
+    },
+    submitted: {
+      productName: scan.product_name || null,
+      manufacturer: scan.manufacturer || null,
+      registrationNumber: scan.registration_number || null,
+      expiryDate: scan.expiry_normalized || null,
     },
     checks,
-    verificationScore: scan.verification_score,
-    scoreBand: scan.score_band,
-    matchedChecks: checks.filter(item => item.status === 'match').length,
-    totalChecks: checks.length,
-    hasWarning: checks.some(item => item.status === 'warning'),
+    completion,
+    completedChecks: completion.completed,
+    totalChecks: completion.total,
+    hasWarning: completion.hasWarning,
     warnings: checks.filter(item => item.status === 'warning'),
-    recommendation: scan.recommendation,
-    limitation: scan.limitation,
-    dataset: scan.dataset_meta,
+    verdict: verdictForChecks(checks),
     stored: true,
   };
 }
@@ -69,10 +72,10 @@ export async function getSessionWithScans(userId, sessionId) {
     .select(`
       id,title,pinned,created_at,updated_at,
       scans(
-        id,user_id,product_name,manufacturer,registration_number,batch_number,
-        expiry_printed,expiry_normalized,ingredients,verification_score,score_band,
-        recommendation,limitation,dataset_meta,checked_at,created_at,updated_at,
-        scan_checks(id,check_key,status,reason,source,coverage_note,checked_at)
+        id,user_id,product_name,manufacturer,registration_number,
+        expiry_printed,expiry_normalized,recommendation,limitation,
+        checked_at,created_at,updated_at,
+        scan_checks(id,check_key,status,reason,source,checked_at)
       )
     `)
     .eq('user_id', userId)
@@ -105,16 +108,18 @@ export async function createSession(userId, title = 'New product check') {
 
 async function writeChecks(client, userId, scanId, checks) {
   if (!checks?.length) return;
-  const rows = checks.map(check => ({
-    scan_id: scanId,
-    user_id: userId,
-    check_key: check.key,
-    status: check.status,
-    reason: check.reason,
-    source: check.source || null,
-    coverage_note: check.coverageNote || null,
-    checked_at: check.checkedAt || new Date().toISOString(),
-  }));
+  const rows = checks
+    .filter(check => check.key === 'registration' || check.key === 'expiry')
+    .map(check => ({
+      scan_id: scanId,
+      user_id: userId,
+      check_key: check.key,
+      status: check.status,
+      reason: check.reason,
+      source: check.source || null,
+      coverage_note: null,
+      checked_at: check.checkedAt || new Date().toISOString(),
+    }));
   const { error } = await client.from('scan_checks').upsert(rows, { onConflict: 'scan_id,check_key' });
   if (error) throw error;
 }
@@ -127,15 +132,10 @@ export async function saveScan(userId, sessionId, result, existingScanId = null)
     product_name: result.fields?.productName || null,
     manufacturer: result.fields?.manufacturer || null,
     registration_number: result.fields?.registrationNumber || null,
-    batch_number: result.fields?.batchNumber || null,
     expiry_printed: result.fields?.expiryDate || null,
     expiry_normalized: result.submitted?.expiryDate || null,
-    ingredients: result.submitted?.ingredients || [],
-    verification_score: result.verificationScore,
-    score_band: result.scoreBand,
-    recommendation: result.recommendation,
-    limitation: result.limitation,
-    dataset_meta: result.dataset || null,
+    recommendation: result.verdict,
+    limitation: null,
     checked_at: result.checkedAt || new Date().toISOString(),
   };
 
