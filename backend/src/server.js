@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
+import extractLabelRouter from './routes/extractLabel.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const requiredEnvVars = [
@@ -67,8 +68,29 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/label-checks', labelChecksRouter);
 app.use('/api/scans', scansRouter);
+app.use('/api/extract-label', extractLabelRouter);
+
+// Catches multer's file-size/file-type errors before the general error
+// handler, since multer throws plain Errors rather than using statusCode.
+app.use((err, req, res, next) => {
+  if (err.message?.includes('File too large')) {
+    return res
+      .status(400)
+      .json({
+        error: { code: 'FILE_TOO_LARGE', message: 'Image must be under 8MB.' },
+      });
+  }
+  if (err.message?.includes('Only JPEG, PNG, or WebP')) {
+    return res
+      .status(400)
+      .json({ error: { code: 'INVALID_FILE_TYPE', message: err.message } });
+  }
+  next(err);
+});
 
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`GenuineNG Layer 1 backend running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`GenuineNG Layer 1 backend running on port ${PORT}`)
+);
