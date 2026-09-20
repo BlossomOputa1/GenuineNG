@@ -30,10 +30,10 @@ export async function checkRegistration(
     };
   }
 
-  if (!productName || productName.trim() === '') {
+  if (!productName || productName.trim() === '' || !manufacturer || manufacturer.trim() === '') {
     return {
-      status: 'match',
-      reason: `Registration number is on record for ${record.manufacturer}. Product name wasn't provided, so name/manufacturer identity wasn't cross-checked.`,
+      status: 'unverified',
+      reason: 'The registration number is on record, but product name and manufacturer are required to confirm the product identity.',
       source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
     };
@@ -55,8 +55,8 @@ export async function checkRegistration(
 
   if (identity.matches === null) {
     return {
-      status: 'match',
-      reason: `Registration number matches. Product/manufacturer identity check unavailable: ${identity.reason}`,
+      status: 'unverified',
+      reason: `The registration number is on record, but product identity could not be confirmed. ${identity.reason}`,
       source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
     };

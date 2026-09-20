@@ -7,6 +7,34 @@ export function getApiBaseUrl() {
   return API_BASE_URL;
 }
 
+async function readJson(response) {
+  return response.json().catch(() => null);
+}
+
+export async function extractLabelFields(frontBlob, backBlob, signal) {
+  if (!frontBlob || !backBlob) throw new Error('Front and back images are both required.');
+
+  const form = new FormData();
+  form.append('front', frontBlob, 'front.webp');
+  form.append('back', backBlob, 'back.webp');
+
+  const response = await fetch(`${API_BASE_URL}/api/extract-label`, {
+    method: 'POST',
+    body: form,
+    signal,
+  });
+
+  const body = await readJson(response);
+  if (!response.ok) {
+    throw new Error(body?.reason || `Label extraction failed (${response.status}).`);
+  }
+
+  return body || {
+    status: 'extraction_unavailable',
+    fields: { productName: null, manufacturer: null, registrationNumber: null, expiryDate: null },
+  };
+}
+
 export async function runLabelVerification(fields, signal) {
   const { payload, normalization } = buildVerificationPayload(fields);
   const response = await fetch(`${API_BASE_URL}/api/label-checks`, {
@@ -16,7 +44,7 @@ export async function runLabelVerification(fields, signal) {
     signal,
   });
 
-  const body = await response.json().catch(() => null);
+  const body = await readJson(response);
   if (!response.ok) {
     const detail = body?.details?.join(' ') || body?.reason || `Verification request failed (${response.status}).`;
     throw new Error(detail);

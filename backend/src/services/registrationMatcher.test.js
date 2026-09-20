@@ -91,3 +91,19 @@ test('known number with mismatched product name returns warning', async () => {
   );
   assert.equal(result.status, 'warning');
 });
+
+test('known number with unavailable identity comparison returns unverified', async () => {
+  const result = await checkRegistration(
+    {
+      registrationNumber: 'GN-FOOD-0001',
+      productName: 'GenuineNG Sample Food A',
+      manufacturer: 'GenuineNG Demo Foods Ltd.',
+    },
+    fixedNow,
+    {
+      ...baseDeps,
+      compareIdentity: async () => ({ matches: null, reason: 'identity service unavailable' }),
+    }
+  );
+  assert.equal(result.status, 'unverified');
+});
