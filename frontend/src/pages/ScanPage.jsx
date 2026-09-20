@@ -62,7 +62,7 @@ export default function ScanPage({ navigate, onBeginScan }) {
                   <span className="guidance-number">01</span>
                   <div>
                     <strong>Find the printed details</strong>
-                    <p>Look for the manufacturer, NAFDAC number, batch, expiry and ingredients.</p>
+                    <p>Look for the product name, manufacturer, NAFDAC number and expiry date.</p>
                   </div>
                 </li>
                 <li>

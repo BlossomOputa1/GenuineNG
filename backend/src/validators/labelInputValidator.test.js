@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { validateLabelInput } from './labelInputValidator.js';
 
 test('product name, manufacturer and registration number are required', () => {
-  const result = validateLabelInput({ batchNumber: null, expiryDate: null, ingredients: [] });
+  const result = validateLabelInput({ expiryDate: null });
   assert.equal(result.valid, false);
   assert.ok(result.errors.includes('productName is required.'));
   assert.ok(result.errors.includes('manufacturer is required.'));
   assert.ok(result.errors.includes('registrationNumber is required.'));
 });
 
-test('optional batch, expiry and ingredients may be omitted', () => {
+test('expiry may be omitted', () => {
   const result = validateLabelInput({
     productName: 'Demo Product',
     manufacturer: 'Demo Ltd',

@@ -1,10 +1,3 @@
-export function splitIngredients(value = '') {
-  return String(value)
-    .split(/[,;\n]+/)
-    .map(item => item.trim())
-    .filter(Boolean);
-}
-
 function lastDayOfMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
@@ -68,9 +61,7 @@ export function buildVerificationPayload(fields) {
       productName: fields.productName?.trim() || null,
       manufacturer: fields.manufacturer?.trim() || null,
       registrationNumber: fields.registrationNumber?.trim() || null,
-      batchNumber: fields.batchNumber?.trim() || null,
       expiryDate: expiry.value,
-      ingredients: splitIngredients(fields.ingredients),
     },
     normalization: { expiryNote: expiry.note },
   };
