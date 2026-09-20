@@ -54,7 +54,7 @@ function PreviousScan({ scan, index, onEdit }) {
   );
 }
 
-export default function LabelCheckFlow({ initialPhotoFile = null, previousScans = [], onResultComplete, mode = 'guest', onLeave, conversationId = null }) {
+export default function LabelCheckFlow({ initialPhotoFile = null, previousScans = [], onResultComplete, mode = 'guest', onLeave, onCancelPendingScan = null, conversationId = null }) {
   const [stage, setStage] = useState('capture');
   const [photos, setPhotos] = useState({ front: null, back: null });
   const [fields, setFields] = useState(emptyFields);
@@ -200,6 +200,10 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
   function editSavedScan(scan) { clearPhotos(); setFields({ ...emptyFields, ...scan.fields }); setResult(scan); setEditingSavedScan(scan); setError(''); setStage('review_saved'); }
   function cancelEdit() { if (!editingSavedScan) return; setFields({ ...emptyFields, ...editingSavedScan.fields }); setResult(editingSavedScan); setEditingSavedScan(null); setError(''); setStage('result'); }
   function newScan() { extractAbort.current?.abort(); verifyAbort.current?.abort(); setExtractionPaused(false); clearPhotos(); setFields(emptyFields); setPartialFields(emptyFields); setResult(null); setEditingSavedScan(null); setError(''); setStage('capture'); }
+  function cancelPendingReview() {
+    newScan();
+    onCancelPendingScan?.();
+  }
 
   return <section className={`demo-scan-flow ${mode === 'signed' ? 'signed-scan-flow' : ''}`}>
     {visiblePrevious.length > 0 && <div className="demo-thread-history" aria-label="Earlier checks in this session">{visiblePrevious.map((scan, index) => <PreviousScan key={scan.id} scan={scan} index={index} onEdit={editSavedScan} />)}</div>}
@@ -226,7 +230,7 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
       onChange={(key, value) => { setFields(current => ({ ...current, [key]: value })); setError(''); }}
       onContinue={() => runCheck(fields)}
       onClose={editingSavedScan ? cancelEdit : undefined}
-      onCancel={editingSavedScan ? cancelEdit : undefined}
+      onCancel={editingSavedScan ? cancelEdit : cancelPendingReview}
       busy={false}
       error={error}
       savedEdit={stage === 'review_saved'}

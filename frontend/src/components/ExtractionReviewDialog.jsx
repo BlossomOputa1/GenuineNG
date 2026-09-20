@@ -14,11 +14,13 @@ export default function ExtractionReviewDialog({
 }) {
   if (!open) return null;
 
+  const handleClose = onClose || onCancel;
+
   return (
     <div className="gn-modal-backdrop extraction-review-backdrop" role="presentation">
       <section className="gn-modal extraction-review-modal" role="dialog" aria-modal="true" aria-labelledby="extraction-review-title">
-        {onClose && (
-          <button type="button" className="gn-modal-close" onClick={onClose} aria-label="Close details review">
+        {handleClose && (
+          <button type="button" className="gn-modal-close" onClick={handleClose} aria-label="Close details review">
             <Icon name="close" size={18} />
           </button>
         )}
@@ -33,7 +35,6 @@ export default function ExtractionReviewDialog({
           fields={fields}
           onChange={onChange}
           onSubmit={onContinue}
-          onCancel={onCancel}
           busy={busy}
           error={error}
           savedEdit={savedEdit}
