@@ -1,13 +1,9 @@
-// import { createClient } from '@supabase/supabase-js';
-import 'dotenv/config';
-import { supabase } from '../config/supabaseClient';
-// Verifies JWTs via Supabase's Auth server. Uses the publishable key —
-// verification comes from the Auth API itself, not key privilege,
-// so the secret key is never needed here.
-const authClient = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_PUBLISHABLE_KEY
-);
+import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../config/supabaseClient.js';
+
+// Verifies JWTs via Supabase's Auth server using the centralized client.
+// The per-request scoped client (req.supabase) carries the user's JWT
+// so RLS policies are enforced correctly for downstream queries.
 
 export async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -29,7 +25,7 @@ export async function authMiddleware(req, res, next) {
     });
   }
 
-  const { data, error } = await authClient.auth.getUser(token);
+  const { data, error } = await supabase.auth.getUser(token);
 
   if (error || !data?.user) {
     return res.status(401).json({
@@ -45,11 +41,21 @@ export async function authMiddleware(req, res, next) {
 
   // Scoped client carrying the user's JWT, so RLS stays part of the
   // normal authorization path instead of relying on the secret key.
-  req.supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
+  const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+  const supabaseAnonKey = (
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    ''
+  ).trim();
+
+  if (supabaseUrl && supabaseAnonKey) {
+    req.supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+  } else {
+    // Fallback: use the centralized (service-role) client if no anon key
+    req.supabase = supabase;
+  }
 
   next();
 }

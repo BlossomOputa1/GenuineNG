@@ -14,7 +14,7 @@ if (!supabaseUrl || !supabaseSecretKey) {
   console.error('- SUPABASE_URL found:', Boolean(supabaseUrl));
   console.error('- Secret key found:', Boolean(supabaseSecretKey));
   console.error('- Configured Supabase Keys:',
-    Object.keys(process.env).filter(k => k. toUpperCase().includes('SUPABASE'))
+    Object.keys(process.env).filter(k => k.toUpperCase().includes('SUPABASE'))
   );
   throw new Error('Missing Supabase configuration. Check backend/.env.');
 }
