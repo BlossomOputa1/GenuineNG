@@ -1,51 +1,46 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checksObjectToArray, deriveCompletionState, verdictForChecks } from './resultModel.js';
+import { buildScore, checksObjectToArray } from './resultModel.js';
 
-test('backend check object is adapted to registration then expiry', () => {
-  const checks = checksObjectToArray({
-    expiry: { status: 'match', reason: 'ok' },
-    registration: { status: 'unverified', reason: 'unknown' },
-    ingredients: { status: 'match', reason: 'legacy check should be ignored' },
-  });
-  assert.deepEqual(checks.map(item => item.key), ['registration', 'expiry']);
-});
-
-test('unverified is a completed check, not a failed request', () => {
-  const state = deriveCompletionState([
-    { status: 'unverified' },
+test('verification score uses all four checks as the denominator', () => {
+  const result = buildScore([
     { status: 'match' },
-  ]);
-  assert.equal(state.title, 'Checks complete');
-  assert.equal(state.completed, 2);
-});
-
-test('missing expiry produces a partial result', () => {
-  const state = deriveCompletionState([
+    { status: 'match' },
     { status: 'match' },
     { status: 'not_checked' },
   ]);
-  assert.equal(state.title, 'Checks partially complete');
-  assert.equal(state.completed, 1);
+  assert.equal(result.score, 75);
+  assert.equal(result.band, 'medium');
 });
 
-test('warnings are surfaced without creating a numeric score', () => {
-  const state = deriveCompletionState([
-    { status: 'warning' },
+test('warnings and unverified checks earn no points', () => {
+  const result = buildScore([
     { status: 'match' },
+    { status: 'warning' },
+    { status: 'unverified' },
+    { status: 'not_checked' },
   ]);
-  assert.equal(state.title, 'Checks complete — attention needed');
-  assert.equal(state.hasWarning, true);
+  assert.equal(result.score, 25);
+  assert.equal(result.band, 'bad');
 });
 
-
-test('unverified registration uses the current verdict wording', () => {
-  const verdict = verdictForChecks([
-    { key: 'registration', status: 'unverified' },
-    { key: 'expiry', status: 'match' },
+test('all not_checked returns insufficient instead of zero', () => {
+  const result = buildScore([
+    { status: 'not_checked' },
+    { status: 'not_checked' },
+    { status: 'not_checked' },
+    { status: 'not_checked' },
   ]);
-  assert.equal(
-    verdict,
-    'The registration could not be confirmed from the current Greenbook dataset. The product may not be fake. GenuineNG could not verify that record from the source currently available.'
-  );
+  assert.equal(result.score, null);
+  assert.equal(result.band, 'insufficient');
+});
+
+test('backend check object is adapted in stable UI order', () => {
+  const checks = checksObjectToArray({
+    ingredients: { status: 'match', reason: 'ok' },
+    expiry: { status: 'match', reason: 'ok' },
+    registration: { status: 'unverified', reason: 'unknown' },
+    recall: { status: 'not_checked', reason: 'limited coverage' },
+  });
+  assert.deepEqual(checks.map(item => item.key), ['registration', 'expiry', 'recall', 'ingredients']);
 });

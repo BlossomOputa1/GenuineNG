@@ -26,18 +26,19 @@ export function speakResult(result, { onEnd } = {}) {
   const warningText = result.warnings?.length
     ? `Warning. ${result.warnings.map(item => item.reason).join(' ')}`
     : '';
-  const completionText = result.completion
-    ? `${result.completion.title}. ${result.completion.detail}`
-    : '';
+  const scoreText = result.verificationScore === null
+    ? 'There was not enough information to calculate a verification score.'
+    : `Verification score ${result.verificationScore} percent. ${result.matchedChecks} of ${result.totalChecks} checks matched.`;
   const checkText = (result.checks || [])
     .map(check => `${check.title}. ${check.status.replace('_', ' ')}. ${check.reason}`)
     .join(' ');
   const text = [
     `GenuineNG result for ${result.fields?.productName || 'this product'}.`,
     warningText,
-    completionText,
+    scoreText,
     checkText,
-    `Verdict. ${result.verdict}`,
+    `Recommendation. ${result.recommendation}`,
+    `Limit. ${result.limitation}`,
   ].filter(Boolean).join(' ');
 
   const utterance = new SpeechSynthesisUtterance(text);
