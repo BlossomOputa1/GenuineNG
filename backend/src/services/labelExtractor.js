@@ -1,68 +1,10 @@
 const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const EMPTY_FIELDS = Object.freeze({
-  productName: null,
-  manufacturer: null,
-  registrationNumber: null,
-  expiryDate: null,
-});
+const EXTRACTION_PROMPT = `You are reading a photo of a pharmaceutical/consumer product label sold in Nigeria.
+Extract exactly these fields if visible. If a field is not visible or not present, use null — never guess.
 
-function cleanNullable(value) {
-  if (typeof value !== 'string') return null;
-  const cleaned = value.replace(/\s+/g, ' ').trim();
-  return cleaned || null;
-}
-
-function cleanExpiry(value) {
-  const cleaned = cleanNullable(value);
-  if (!cleaned) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return null;
-  const [year, month, day] = cleaned.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) return null;
-  return cleaned;
-}
-
-export function normalizeExtractedFields(value = {}) {
-  return {
-    productName: cleanNullable(value.productName),
-    manufacturer: cleanNullable(value.manufacturer),
-    registrationNumber: cleanNullable(value.registrationNumber),
-    expiryDate: cleanExpiry(value.expiryDate),
-  };
-}
-
-export function mergeExtractedFields(primary = {}, secondary = {}) {
-  const first = normalizeExtractedFields(primary);
-  const second = normalizeExtractedFields(secondary);
-  return {
-    // Front labels usually carry identity; back/side labels usually carry NRN + expiry.
-    productName: first.productName || second.productName,
-    manufacturer: first.manufacturer || second.manufacturer,
-    registrationNumber: second.registrationNumber || first.registrationNumber,
-    expiryDate: second.expiryDate || first.expiryDate,
-  };
-}
-
-function parseGeminiJson(text = '') {
-  const cleaned = String(text)
-    .trim()
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/i, '');
-  return normalizeExtractedFields(JSON.parse(cleaned));
-}
-
-function extractionPrompt() {
-  return `You are reading ONE photo of a pharmaceutical or consumer product label sold in Nigeria.
-Extract only these fields when they are actually visible and legible. If a field is not visible, use null. Never infer, guess or invent a value.
-
-Respond with ONLY valid JSON in this exact shape:
+Respond with ONLY a JSON object, no other text:
 {
   "productName": string or null,
   "manufacturer": string or null,
@@ -70,80 +12,137 @@ Respond with ONLY valid JSON in this exact shape:
   "expiryDate": string in YYYY-MM-DD format or null
 }
 
-Rules:
-- productName is the product/variant name, not a slogan.
-- manufacturer is the company that manufactures/produces the product, not merely the largest brand text.
-- registrationNumber is the NAFDAC registration number, often labelled NAFDAC Reg. No., NAFDAC No., NRN or similar.
-- expiryDate may appear in formats such as 12/2027, DEC 2027, 27/12/2027, EXP 12/27. Convert it to YYYY-MM-DD. If only month/year is visible, use the final calendar day of that month.
-- If text is blurry, cropped or ambiguous, return null for that field rather than guessing.`;
+Field definitions — be precise:
+- productName: the specific product name as printed (e.g. "Nivea Radiant & Beauty Even Glow Body Lotion").
+- manufacturer: the LEGAL COMPANY that made the product — NOT the brand name on the front of the pack.
+  Look specifically for text like "Manufactured by", "Made by", "Distributed by", or a company name
+  followed by a legal suffix (Ltd, PLC, GmbH, AG, Inc, Limited, Co). This is usually printed in smaller
+  text on the back/side of the pack, often near the registration number or address.
+  Example: if the front says "NIVEA" in large letters but the back says "Manufactured by Beiersdorf AG",
+  the manufacturer is "Beiersdorf AG", NOT "Nivea" — Nivea is a brand, not the manufacturing company.
+  If no distinct manufacturer company name is printed anywhere and only a brand name exists, use that
+  brand name as a last resort, but prefer a real company name whenever one is visible.
+- registrationNumber: the NAFDAC registration number, usually printed as "NAFDAC Reg. No." or similar.
+- expiryDate: may be printed in many formats (e.g. "12/2027", "DEC 2027", "27/12/2027") — convert it to
+  YYYY-MM-DD. If only month/year is printed, use the last day of that month.
+
+Do not infer or guess a field that isn't legible in the photo.`;
+
+const STRING_FIELDS = ['productName', 'manufacturer', 'registrationNumber'];
+
+/**
+ * Checks whether a YYYY-MM-DD string is a real calendar date, not just a
+ * regex-shaped one (e.g. rejects 2028-02-31). Mirrors the same check used
+ * in labelInputValidator.js for the /api/label-checks boundary.
+ */
+function isValidCalendarDate(dateStr) {
+  if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr))
+    return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return (
+    candidate.getUTCFullYear() === year &&
+    candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day
+  );
 }
 
-async function extractOne(file, apiKey, signal) {
-  if (!file?.buffer?.length) return { ok: false, fields: EMPTY_FIELDS };
+/**
+ * Trims whitespace on string fields and discards an expiryDate that isn't
+ * a genuinely valid calendar date, rather than trusting Gemini's raw
+ * output as-is. Never invents a value — a discarded/missing field becomes
+ * null, not a guess.
+ */
+export function normalizeExtractedFields(fields = {}) {
+  const normalized = {};
+
+  for (const key of STRING_FIELDS) {
+    const value = fields[key];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      normalized[key] = trimmed === '' ? null : trimmed;
+    } else {
+      normalized[key] = null;
+    }
+  }
+
+  normalized.expiryDate = isValidCalendarDate(fields.expiryDate)
+    ? fields.expiryDate
+    : null;
+
+  return normalized;
+}
+
+/**
+ * Merges front/back extraction results. Prefers front's value for a field
+ * when present; falls back to back's value otherwise. Neither side is
+ * assumed authoritative — this is a simple "take whichever side actually
+ * read something" merge, not a front-vs-back specialization.
+ */
+export function mergeExtractedFields(front, back) {
+  const merged = {};
+  for (const key of [...STRING_FIELDS, 'expiryDate']) {
+    merged[key] = front?.[key] ?? back?.[key] ?? null;
+  }
+  return merged;
+}
+
+/**
+ * Sends one photo to Gemini and returns extracted fields. Fails closed —
+ * any error returns a result with success:false rather than throwing,
+ * so the controller can respond gracefully instead of 500ing.
+ */
+export async function extractLabelFields(imageBuffer, mimeType, deps = {}) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const fetchFn = deps.fetch || fetch;
+
+  if (!apiKey) {
+    return { success: false, reason: 'Gemini API key not configured.' };
+  }
 
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: extractionPrompt() },
-            {
-              inline_data: {
-                mime_type: file.mimeType,
-                data: file.buffer.toString('base64'),
-              },
-            },
-          ],
-        }],
-      }),
-      signal,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-    if (!response.ok) {
-      return { ok: false, fields: EMPTY_FIELDS, reason: `Gemini request failed (${response.status}).` };
+    const res = await fetchFn(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: EXTRACTION_PROMPT },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: imageBuffer.toString('base64'),
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      return {
+        success: false,
+        reason: `Gemini request failed (${res.status}).`,
+      };
     }
 
-    const payload = await response.json();
-    const text = payload.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
-    if (!text) return { ok: false, fields: EMPTY_FIELDS, reason: 'Gemini returned no extraction text.' };
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const cleaned = text?.replace(/^```json\s*|\s*```$/g, '');
+    const parsed = JSON.parse(cleaned);
 
-    return { ok: true, fields: parseGeminiJson(text) };
-  } catch (error) {
-    if (error?.name === 'AbortError') throw error;
-    return { ok: false, fields: EMPTY_FIELDS, reason: error?.message || 'Gemini extraction failed.' };
-  }
-}
-
-export async function extractLabelFields(images = {}, { signal } = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
     return {
-      status: 'extraction_unavailable',
-      fields: { ...EMPTY_FIELDS },
-      reason: 'Gemini API key is not configured.',
+      success: true,
+      fields: normalizeExtractedFields(parsed),
     };
+  } catch (err) {
+    return { success: false, reason: `Extraction failed: ${err.message}` };
   }
-
-  const [front, back] = await Promise.all([
-    images.front ? extractOne(images.front, apiKey, signal) : Promise.resolve({ ok: false, fields: EMPTY_FIELDS }),
-    images.back ? extractOne(images.back, apiKey, signal) : Promise.resolve({ ok: false, fields: EMPTY_FIELDS }),
-  ]);
-
-  const fields = mergeExtractedFields(front.fields, back.fields);
-  const hasAnyField = Object.values(fields).some(Boolean);
-
-  if (!hasAnyField) {
-    return {
-      status: 'extraction_unavailable',
-      fields,
-      reason: front.reason || back.reason || 'No readable label details were extracted.',
-    };
-  }
-
-  return { status: 'completed', fields };
 }
