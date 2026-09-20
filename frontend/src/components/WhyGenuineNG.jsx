@@ -40,7 +40,7 @@ export default function WhyGenuineNG({ navigate }) {
 
           <p>
             GenuineNG helps close that gap by letting users quickly check product
-            details like registration numbers, expiry dates, ingredients, and recalls.
+            details like the product name, manufacturer, registration number and expiry date.
             For partnered manufacturers, GenuineNG can also use unique codes for
             stronger product verification. <strong>GenuineNG exists to make product
             checking simple and make counterfeit products harder to pass unnoticed.</strong>
