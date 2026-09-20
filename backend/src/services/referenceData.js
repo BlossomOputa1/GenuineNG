@@ -2,43 +2,39 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const dataDir = path.resolve(__dirname, '../../../data/processed');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATASET_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'nafdac_greenbook_export.json'
+);
 
-function readJson(name, fallback) {
-  try {
-    const raw = fs.readFileSync(path.join(dataDir, name), 'utf8');
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn(`Could not load ${name}: ${error.message}`);
-    return fallback;
-  }
+let dataset = { generatedAt: null, records: [] };
+
+try {
+  const raw = fs.readFileSync(DATASET_PATH, 'utf-8');
+  dataset = JSON.parse(raw);
+  console.log(
+    `Loaded ${dataset.records.length} reference records (generated ${dataset.generatedAt})`
+  );
+} catch (err) {
+  console.warn(
+    'Reference dataset not found or invalid — registration checks will return unverified for everything. Run scripts/fetch-nafdac-greenbook.js.'
+  );
 }
 
-export const productReference = readJson('reference_products.json', {
-  meta: { coverage: 'Reference data unavailable.' },
-  products: []
-});
+export function findByRegistrationNumber(registrationNumber) {
+  return (
+    dataset.records.find((r) => r.registrationNumber === registrationNumber) ||
+    null
+  );
+}
 
-export const recallReference = readJson('recalls.json', {
-  meta: { coverage: 'Recall data unavailable.' },
-  recalls: []
-});
-
-export const flaggedSubstances = readJson('flagged_substances.json', {
-  meta: { coverage: 'Flagged-substance data unavailable.' },
-  rules: []
-});
-
-export function datasetSummary() {
+export function getDatasetInfo() {
   return {
-    productRecords: productReference.products.length,
-    productCheckedAt: productReference.meta?.checkedAt || null,
-    productCoverage: productReference.meta?.coverage || null,
-    recallRecords: recallReference.recalls.length,
-    recallCheckedAt: recallReference.meta?.checkedAt || null,
-    ingredientRules: flaggedSubstances.rules.length,
-    ingredientCheckedAt: flaggedSubstances.meta?.checkedAt || null,
+    generatedAt: dataset.generatedAt,
+    recordCount: dataset.records.length,
   };
 }

@@ -2,23 +2,92 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkRegistration } from './registrationMatcher.js';
 
-test('missing registration number returns not_checked', () => {
-  assert.equal(checkRegistration(null, null, null).status, 'not_checked');
+const fixedNow = new Date('2026-06-01T00:00:00.000Z');
+
+const fixtureRecord = {
+  registrationNumber: 'GN-FOOD-0001',
+  productName: 'GenuineNG Sample Food A',
+  manufacturer: 'GenuineNG Demo Foods Ltd.',
+};
+
+const baseDeps = {
+  findRecord: (num) =>
+    num === fixtureRecord.registrationNumber ? fixtureRecord : null,
+  getDatasetInfo: () => ({ generatedAt: '2026-01-01T00:00:00.000Z' }),
+};
+
+test('missing registration number returns not_checked', async () => {
+  const result = await checkRegistration(
+    { registrationNumber: null, productName: null, manufacturer: null },
+    fixedNow,
+    baseDeps
+  );
+  assert.equal(result.status, 'not_checked');
 });
 
-test('known integration registration returns match', () => {
-  assert.equal(checkRegistration('GN-FOOD-0001', 'GenuineNG Sample Food A', 'GenuineNG Demo Foods Ltd.').status, 'match');
+test('known integration registration returns match', async () => {
+  const result = await checkRegistration(
+    {
+      registrationNumber: 'GN-FOOD-0001',
+      productName: 'GenuineNG Sample Food A',
+      manufacturer: 'GenuineNG Demo Foods Ltd.',
+    },
+    fixedNow,
+    {
+      ...baseDeps,
+      compareIdentity: async () => ({ matches: true, reason: 'exact match' }),
+    }
+  );
+  assert.equal(result.status, 'match');
 });
 
-test('known number with mismatched manufacturer returns warning', () => {
-  assert.equal(checkRegistration('GN-FOOD-0001', 'GenuineNG Sample Food A', 'Different Company').status, 'warning');
+test('known number with mismatched manufacturer returns warning', async () => {
+  const result = await checkRegistration(
+    {
+      registrationNumber: 'GN-FOOD-0001',
+      productName: 'GenuineNG Sample Food A',
+      manufacturer: 'Different Company',
+    },
+    fixedNow,
+    {
+      ...baseDeps,
+      compareIdentity: async () => ({
+        matches: false,
+        reason: 'manufacturer differs',
+      }),
+    }
+  );
+  assert.equal(result.status, 'warning');
 });
 
-test('unknown registration number returns unverified, never fake', () => {
-  assert.equal(checkRegistration('UNKNOWN-000', 'Unknown Product', 'Unknown Company').status, 'unverified');
+test('unknown registration number returns unverified, never fake', async () => {
+  const result = await checkRegistration(
+    {
+      registrationNumber: 'UNKNOWN-000',
+      productName: 'Unknown Product',
+      manufacturer: 'Unknown Company',
+    },
+    fixedNow,
+    baseDeps
+  );
+  assert.equal(result.status, 'unverified');
 });
 
-
-test('known number with mismatched product name returns warning', () => {
-  assert.equal(checkRegistration('GN-FOOD-0001', 'Different Product', 'GenuineNG Demo Foods Ltd.').status, 'warning');
+test('known number with mismatched product name returns warning', async () => {
+  const result = await checkRegistration(
+    {
+      registrationNumber: 'GN-FOOD-0001',
+      productName: 'Different Product',
+      manufacturer: 'GenuineNG Demo Foods Ltd.',
+    },
+    fixedNow,
+    {
+      ...baseDeps,
+      compareIdentity: async () => ({
+        matches: false,
+        reason: 'product name differs',
+      }),
+    }
+  );
+  assert.equal(result.status, 'warning');
 });
