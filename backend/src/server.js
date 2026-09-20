@@ -2,11 +2,20 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import labelChecksRouter from './routes/labelChecks.js';
-import extractLabelRouter from './routes/extractLabel.js';
+import scansRouter from './routes/scans.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-if (!process.env.GEMINI_API_KEY) {
-  console.warn('GEMINI_API_KEY is not configured — label extraction and fuzzy identity comparison will return unavailable/unverified.');
+const requiredEnvVars = [
+  'SUPABASE_URL',
+  'SUPABASE_PUBLISHABLE_KEY',
+  'SUPABASE_SECRET_KEY',
+];
+const missing = requiredEnvVars.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.error(
+    `Missing required environment variables: ${missing.join(', ')}`
+  );
+  process.exit(1);
 }
 
 const app = express();
@@ -61,7 +70,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Routes
 app.use('/api/label-checks', labelChecksRouter);
+app.use('/api/scans', scansRouter);
 
 // Global Error Handler
 app.use(errorHandler);
