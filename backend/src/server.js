@@ -25,7 +25,6 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN || '')
   .map((value) => value.trim())
   .filter(Boolean);
 
-<<<<<<< HEAD
 const isAllowedOrigin = (origin) => {
   // Allow requests with no origin (curl, mobile apps, server-to-server health checks)
   if (!origin) return true;
@@ -48,30 +47,14 @@ app.use(
       if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
-=======
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (
-        !origin ||
-        allowedOrigins.length === 0 ||
-        allowedOrigins.includes(origin)
-      )
-        return callback(null, true);
->>>>>>> d3797a9f7ff6fa5a4a6de22bf915615656e71611
       const error = new Error('Origin not allowed by CORS policy.');
       error.statusCode = 403;
       return callback(error);
     },
-<<<<<<< HEAD
     credentials: true,
   })
 );
 
-=======
-  })
-);
->>>>>>> d3797a9f7ff6fa5a4a6de22bf915615656e71611
 app.use(express.json({ limit: '32kb' }));
 
 app.get('/api/health', (req, res) => {
@@ -88,10 +71,4 @@ app.use('/api/scans', scansRouter);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-<<<<<<< HEAD
 app.listen(PORT, () => console.log(`GenuineNG Layer 1 backend running on port ${PORT}`));
-=======
-app.listen(PORT, () =>
-  console.log(`GenuineNG Layer 1 backend running on port ${PORT}`)
-);
->>>>>>> d3797a9f7ff6fa5a4a6de22bf915615656e71611
