@@ -12,10 +12,21 @@ Respond with ONLY a JSON object, no other text:
   "expiryDate": string in YYYY-MM-DD format or null
 }
 
-Notes:
-- registrationNumber is the NAFDAC registration number, usually printed as "NAFDAC Reg. No." or similar.
-- expiryDate may be printed in many formats (e.g. "12/2027", "DEC 2027", "27/12/2027") — convert it to YYYY-MM-DD. If only month/year is printed, use the last day of that month.
-- Do not infer or guess a field that isn't legible in the photo.`;
+Field definitions — be precise:
+- productName: the specific product name as printed (e.g. "Nivea Radiant & Beauty Even Glow Body Lotion").
+- manufacturer: the LEGAL COMPANY that made the product — NOT the brand name on the front of the pack.
+  Look specifically for text like "Manufactured by", "Made by", "Distributed by", or a company name
+  followed by a legal suffix (Ltd, PLC, GmbH, AG, Inc, Limited, Co). This is usually printed in smaller
+  text on the back/side of the pack, often near the registration number or address.
+  Example: if the front says "NIVEA" in large letters but the back says "Manufactured by Beiersdorf AG",
+  the manufacturer is "Beiersdorf AG", NOT "Nivea" — Nivea is a brand, not the manufacturing company.
+  If no distinct manufacturer company name is printed anywhere and only a brand name exists, use that
+  brand name as a last resort, but prefer a real company name whenever one is visible.
+- registrationNumber: the NAFDAC registration number, usually printed as "NAFDAC Reg. No." or similar.
+- expiryDate: may be printed in many formats (e.g. "12/2027", "DEC 2027", "27/12/2027") — convert it to
+  YYYY-MM-DD. If only month/year is printed, use the last day of that month.
+
+Do not infer or guess a field that isn't legible in the photo.`;
 
 /**
  * Sends one photo to Gemini and returns extracted fields. Fails closed —
