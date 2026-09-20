@@ -1,8 +1,11 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE_URL = 'https://greenbook.nafdac.gov.ng/';
 const PAGE_SIZE = 500;
-const OUTPUT_FILE = 'nafdac_greenbook_export.json';
+const OUTPUT_FILE = path.join(__dirname, '..', 'nafdac_greenbook_export.json');
 
 function buildColumns() {
   const columns = [

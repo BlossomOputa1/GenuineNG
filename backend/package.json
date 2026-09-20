@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "refresh-data": "node ../scripts/fetch-nafdac-greenbook.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

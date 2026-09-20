@@ -1,6 +1,6 @@
 import { buildResult } from '../services/resultBuilder.js';
 
-export function runLabelChecks(req, res) {
-  const result = buildResult(req.body);
+export async function runLabelChecks(req, res) {
+  const result = await buildResult(req.body);
   res.json(result);
 }
