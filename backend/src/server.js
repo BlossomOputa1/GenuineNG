@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
@@ -58,7 +58,7 @@ app.use(
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
-  standardHeaders: true,
+  standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: {
     status: 'error',
@@ -69,7 +69,7 @@ const apiLimiter = rateLimit({
 app.use(express.json({ limit: '32kb' }));
 
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
+  console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl} | req.ip=${req.ip} | x-forwarded-for=${req.headers['x-forwarded-for'] || '(missing)'}`);
   next();
 });
 
@@ -81,11 +81,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.use('/api/extract-label', apiLimiter);
-app.use('/api/label-checks', apiLimiter);
-app.use('/api/label-checks', labelChecksRouter);
+app.post('/api/extract-label', apiLimiter, extractLabelRouter);
+app.post('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
-app.use('/api/extract-label', extractLabelRouter);
 
 app.use('/api', (req, res) => {
   return res.status(404).json({
