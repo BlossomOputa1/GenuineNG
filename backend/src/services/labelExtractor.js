@@ -1,4 +1,4 @@
-const GEMINI_MODEL = 'gemini-2.5-flash'; // or gemini-1.5-flash / gemini-3.5-flash-lite
+const GEMINI_MODEL = 'gemini-3.5-flash-lite'; // or gemini-1.5-flash / gemini-3.5-flash-lite
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const EXTRACTION_PROMPT = `You are reading a photo of a pharmaceutical/consumer product label sold in Nigeria.
