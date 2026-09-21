@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
+import CameraCaptureDialog from './CameraCaptureDialog';
 import ExtractionReviewDialog from './ExtractionReviewDialog';
 import OcrFailureDialog from './OcrFailureDialog';
 import ResultView from './ResultView';
@@ -15,9 +16,8 @@ function missingRequiredIdentity(fields = {}) {
   return requiredIdentityKeys.filter(key => !String(fields[key] || '').trim());
 }
 
-function PhotoSlot({ slot, label, helper, photo, busy, onPick, onRemove }) {
+function PhotoSlot({ slot, label, helper, photo, busy, onPick, onRemove, onSnap }) {
   const uploadRef = useRef(null);
-  const cameraRef = useRef(null);
   function choose(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -26,14 +26,13 @@ function PhotoSlot({ slot, label, helper, photo, busy, onPick, onRemove }) {
   return (
     <article className={`demo-photo-slot ${photo ? 'has-photo' : ''}`}>
       <input ref={uploadRef} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} tabIndex="-1" />
-      <input ref={cameraRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={choose} tabIndex="-1" />
       {photo ? <>
         <img src={photo.url} alt={`${label} preview`} />
         <div className="demo-photo-meta"><div><strong>{label}</strong><span>Ready to read</span></div><button type="button" className="icon-button" onClick={() => onRemove(slot)} disabled={busy} aria-label={`Remove ${label.toLowerCase()}`}><Icon name="close" size={16} /></button></div>
       </> : <div className="demo-photo-empty">
         <span className="demo-photo-icon"><Icon name="camera" size={26} /></span><strong>{label}</strong><p>{helper}</p>
         <div className="demo-photo-actions">
-          <button type="button" className="button primary compact-button" onClick={() => cameraRef.current?.click()} disabled={busy}><Icon name="camera" size={17} />Snap</button>
+          <button type="button" className="button primary compact-button" onClick={() => onSnap(slot, label)} disabled={busy}><Icon name="camera" size={17} />Snap</button>
           <button type="button" className="button secondary compact-button" onClick={() => uploadRef.current?.click()} disabled={busy}><Icon name="upload" size={17} />Upload</button>
         </div>
       </div>}
@@ -65,6 +64,7 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
   const [extractionPaused, setExtractionPaused] = useState(false);
   const [partialFields, setPartialFields] = useState(emptyFields);
   const [editingSavedScan, setEditingSavedScan] = useState(null);
+  const [cameraTarget, setCameraTarget] = useState(null);
   const initialHandled = useRef(false);
   const extractAbort = useRef(null);
   const verifyAbort = useRef(null);
@@ -191,6 +191,10 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
       });
   }, [stage, busy, extractionPaused, photos.front?.id, photos.back?.id]);
 
+  function openCamera(slot, label) { setError(''); setCameraTarget({ slot, label }); }
+  function closeCamera() { setCameraTarget(null); }
+  function captureCameraPhoto(file) { const target = cameraTarget; setCameraTarget(null); if (target?.slot && file) preparePhoto(target.slot, file); }
+
   function removePhoto(slot) { setPhotos(current => { releasePhoto(current[slot]); return { ...current, [slot]: null }; }); setExtractionPaused(false); setError(''); }
   function retakePhotos() { setExtractionFailureOpen(false); setExtractionPaused(false); clearPhotos(); setFields(emptyFields); setPartialFields(emptyFields); setError(''); setStage('capture'); }
   function closeExtractionFailure() { setExtractionFailureOpen(false); setExtractionPaused(true); setError(''); setStage('capture'); }
@@ -206,7 +210,7 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
 
     {stage === 'capture' && <div className="demo-stage-card demo-capture-stage">
       <div className={`demo-stage-heading ${mode === 'signed' && !visiblePrevious.length ? 'signed-capture-heading' : ''}`}><div>{!(mode === 'signed' && !visiblePrevious.length) && <span className="eyebrow">PRODUCT LABEL CHECK</span>}<h1>{mode === 'signed' && !visiblePrevious.length ? 'What are we checking today?' : 'Show us both sides.'}</h1><p>Add a clear front image and a clear back image.</p></div>{mode === 'guest' && onLeave && <button type="button" className="text-button" onClick={onLeave}><Icon name="back" size={16} /> Back to main</button>}</div>
-      <div className="demo-photo-grid"><PhotoSlot slot="front" label="Front image" helper="Capture the product name and main label clearly." photo={photos.front} busy={busy} onPick={preparePhoto} onRemove={removePhoto} /><PhotoSlot slot="back" label="Back image" helper="Capture the NAFDAC number, manufacturer and expiry details clearly." photo={photos.back} busy={busy} onPick={preparePhoto} onRemove={removePhoto} /></div>
+      <div className="demo-photo-grid"><PhotoSlot slot="front" label="Front image" helper="Capture the product name and main label clearly." photo={photos.front} busy={busy} onPick={preparePhoto} onRemove={removePhoto} onSnap={openCamera} /><PhotoSlot slot="back" label="Back image" helper="Capture the NAFDAC number, manufacturer and expiry details clearly." photo={photos.back} busy={busy} onPick={preparePhoto} onRemove={removePhoto} onSnap={openCamera} /></div>
       {error && <div className="inline-notice demo-image-error" role="alert"><Icon name="info" /><div><strong>We couldn’t use that image.</strong><p>{error}</p></div></div>}
     </div>}
 
@@ -231,6 +235,8 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
       error={error}
       savedEdit={stage === 'review_saved'}
     />
+
+    <CameraCaptureDialog open={Boolean(cameraTarget)} label={cameraTarget?.label || 'product image'} onCapture={captureCameraPhoto} onClose={closeCamera} />
 
     <OcrFailureDialog open={extractionFailureOpen} onRetake={retakePhotos} onManual={enterManually} onClose={closeExtractionFailure} />
   </section>;

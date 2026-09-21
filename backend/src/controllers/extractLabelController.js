@@ -1,46 +1,41 @@
-import {
-  extractLabelFields,
-  mergeExtractedFields,
-} from '../services/labelExtractor.js';
+import { extractLabelFields } from '../services/labelExtractor.js';
 
-export async function runLabelExtraction(req, res) {
-  const frontFile = req.files?.front?.[0];
-  const backFile = req.files?.back?.[0];
+export function multerFilesToImages(files = {}) {
+  const front = files.front?.[0] || null;
+  const back = files.back?.[0] || null;
 
-  if (!frontFile && !backFile) {
-    return res.status(400).json({
-      error: {
-        code: 'NO_IMAGE',
-        message:
-          "At least one image is required (field name 'front' or 'back').",
-      },
-    });
+  return {
+    front: front
+      ? {
+          buffer: front.buffer,
+          mimeType: front.mimetype,
+          originalName: front.originalname,
+        }
+      : null,
+    back: back
+      ? {
+          buffer: back.buffer,
+          mimeType: back.mimetype,
+          originalName: back.originalname,
+        }
+      : null,
+  };
+}
+
+export async function runLabelExtraction(req, res, next) {
+  try {
+    const images = multerFilesToImages(req.files);
+
+    if (!images.front && !images.back) {
+      return res.status(400).json({
+        status: 'error',
+        reason: 'At least one front or back image is required.',
+      });
+    }
+
+    const result = await extractLabelFields(images, { signal: req.signal });
+    return res.json(result);
+  } catch (error) {
+    return next(error);
   }
-
-  const [frontResult, backResult] = await Promise.all([
-    frontFile
-      ? extractLabelFields(frontFile.buffer, frontFile.mimetype)
-      : Promise.resolve(null),
-    backFile
-      ? extractLabelFields(backFile.buffer, backFile.mimetype)
-      : Promise.resolve(null),
-  ]);
-
-  const frontFailed = frontFile && !frontResult.success;
-  const backFailed = backFile && !backResult.success;
-
-  if (frontFailed && backFailed) {
-    return res.status(200).json({
-      status: 'extraction_unavailable',
-      reason: `Front: ${frontResult.reason} Back: ${backResult.reason}`,
-      fields: mergeExtractedFields(null, null),
-    });
-  }
-
-  const merged = mergeExtractedFields(
-    frontResult?.success ? frontResult.fields : null,
-    backResult?.success ? backResult.fields : null
-  );
-
-  res.status(200).json({ status: 'completed', fields: merged });
 }
