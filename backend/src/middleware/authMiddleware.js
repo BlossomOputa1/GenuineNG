@@ -48,14 +48,19 @@ export async function authMiddleware(req, res, next) {
     ''
   ).trim();
 
-  if (supabaseUrl && supabaseAnonKey) {
-    req.supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase auth configuration for request-scoped client.');
+    return res.status(500).json({
+      error: {
+        code: 'AUTH_CONFIG_ERROR',
+        message: 'Authentication is not configured correctly.',
+      },
     });
-  } else {
-    // Fallback: use the centralized (service-role) client if no anon key
-    req.supabase = supabase;
   }
+
+  req.supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
 
   next();
 }

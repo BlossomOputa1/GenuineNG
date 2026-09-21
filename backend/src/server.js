@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
@@ -19,26 +20,24 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_ORIGIN) {
+  throw new Error('FRONTEND_ORIGIN must be set in production.');
+}
+
 const app = express();
+app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || '')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean);
 
+const previewOriginPattern = /^https:\/\/genuine-ng(?:-[a-z0-9-]+)*\.vercel\.app$/i;
+
 const isAllowedOrigin = (origin) => {
-  // Allow requests with no origin (curl, mobile apps, server-to-server health checks)
   if (!origin) return true;
-
-  // If no explicit origins are set in environment, permit all by default
-  if (allowedOrigins.length === 0) return true;
-
-  // Exact match from FRONTEND_ORIGIN (e.g. production domain or localhost)
   if (allowedOrigins.includes(origin)) return true;
-
-  // Allow all dynamic Vercel pull request / preview deployment branches
-  if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return true;
-
+  if (previewOriginPattern.test(origin)) return true;
   return false;
 };
 
@@ -56,6 +55,17 @@ app.use(
   })
 );
 
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    reason: 'Too many requests. Please try again in a few minutes.',
+  },
+});
+
 app.use(express.json({ limit: '32kb' }));
 
 app.get('/api/health', (req, res) => {
@@ -66,9 +76,18 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.use('/api/extract-label', apiLimiter);
+app.use('/api/label-checks', apiLimiter);
 app.use('/api/label-checks', labelChecksRouter);
 app.use('/api/scans', scansRouter);
 app.use('/api/extract-label', extractLabelRouter);
+
+app.use('/api', (req, res) => {
+  return res.status(404).json({
+    status: 'error',
+    reason: 'API route not found.',
+  });
+});
 
 // Catches multer's file-size/file-type errors before the general error
 // handler, since multer throws plain Errors rather than using statusCode.

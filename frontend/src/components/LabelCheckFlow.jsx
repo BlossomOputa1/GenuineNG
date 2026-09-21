@@ -8,6 +8,7 @@ import { preprocessImage } from '../ocr/imagePreprocess';
 import { extractLabelFields, runLabelVerification } from '../services/api';
 import { buildResultRecord } from '../services/resultModel';
 import { normalizeExpiryDate } from '../services/labelPayload';
+import { getApiErrorMessage, getFallbackReadFailureMessage } from '../services/errorShape';
 
 const emptyFields = { productName: '', manufacturer: '', registrationNumber: '', expiryDate: '' };
 const requiredIdentityKeys = ['productName', 'manufacturer', 'registrationNumber'];
@@ -108,7 +109,7 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
     const missing = missingRequiredIdentity(fieldValues);
     if (missing.length) {
       setFields({ ...emptyFields, ...fieldValues });
-      setError('Product name / variant, manufacturer and NAFDAC registration number are required.');
+      setError('');
       setStage(editingSavedScan?.id ? 'review_saved' : 'review');
       return;
     }
@@ -148,6 +149,12 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
     }
   }
 
+  function showRequiredFieldNotice() {
+    const missing = missingRequiredIdentity(fields);
+    if (!missing.length) return '';
+    return 'Please complete the required fields before continuing.';
+  }
+
   useEffect(() => {
     if (stage !== 'capture' || busy || extractionPaused || !photos.front || !photos.back) return;
 
@@ -170,10 +177,14 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
         setPartialFields(extracted);
         setFields(extracted);
 
+        const readFailureMessage = output?.status === 'error' ? getApiErrorMessage(output) : '';
         if (output?.status !== 'completed' || missingRequiredIdentity(extracted).length) {
+          setPartialFields(extracted);
+          setFields({ ...emptyFields, ...extracted });
           setStage('capture');
           setExtractionPaused(true);
           setExtractionFailureOpen(true);
+          setError(readFailureMessage || getFallbackReadFailureMessage());
           return;
         }
 
@@ -184,7 +195,7 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
         if (problem?.name === 'AbortError') return;
         setPartialFields(emptyFields);
         setFields(emptyFields);
-        setError(problem?.message || 'GenuineNG could not read these images.');
+        setError(getApiErrorMessage(problem) || getFallbackReadFailureMessage());
         setStage('capture');
         setExtractionPaused(true);
         setExtractionFailureOpen(true);
@@ -232,12 +243,18 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
       onClose={editingSavedScan ? cancelEdit : undefined}
       onCancel={editingSavedScan ? cancelEdit : undefined}
       busy={false}
-      error={error}
+      error={showRequiredFieldNotice() || error}
       savedEdit={stage === 'review_saved'}
     />
 
     <CameraCaptureDialog open={Boolean(cameraTarget)} label={cameraTarget?.label || 'product image'} onCapture={captureCameraPhoto} onClose={closeCamera} />
 
-    <OcrFailureDialog open={extractionFailureOpen} onRetake={retakePhotos} onManual={enterManually} onClose={closeExtractionFailure} />
+    <OcrFailureDialog
+      open={extractionFailureOpen}
+      onRetake={retakePhotos}
+      onManual={enterManually}
+      onClose={closeExtractionFailure}
+      message={error || getFallbackReadFailureMessage()}
+    />
   </section>;
 }

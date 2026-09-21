@@ -1,4 +1,5 @@
 import { buildVerificationPayload } from './labelPayload';
+import { getApiErrorMessage } from './errorShape';
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
 const API_BASE_URL = configuredBase || (import.meta.env.DEV ? 'http://localhost:4000' : '');
@@ -9,6 +10,11 @@ export function getApiBaseUrl() {
 
 async function readJson(response) {
   return response.json().catch(() => null);
+}
+
+function toErrorMessage(response, body) {
+  const message = getApiErrorMessage(body) || `Request failed (${response.status}).`;
+  return message;
 }
 
 export async function extractLabelFields(frontBlob, backBlob, signal) {
@@ -26,7 +32,7 @@ export async function extractLabelFields(frontBlob, backBlob, signal) {
 
   const body = await readJson(response);
   if (!response.ok) {
-    throw new Error(body?.reason || `Label extraction failed (${response.status}).`);
+    throw new Error(toErrorMessage(response, body));
   }
 
   return body || {
@@ -46,8 +52,7 @@ export async function runLabelVerification(fields, signal) {
 
   const body = await readJson(response);
   if (!response.ok) {
-    const detail = body?.details?.join(' ') || body?.reason || `Verification request failed (${response.status}).`;
-    throw new Error(detail);
+    throw new Error(toErrorMessage(response, body));
   }
 
   return { ...body, normalization, submitted: payload };

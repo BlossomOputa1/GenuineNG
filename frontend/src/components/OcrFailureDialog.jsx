@@ -1,6 +1,6 @@
 import Icon from './Icon';
 
-export default function OcrFailureDialog({ open, onRetake, onManual, onClose }) {
+export default function OcrFailureDialog({ open, onRetake, onManual, onClose, message = "We couldn't read this label. Please enter the details manually." }) {
   if (!open) return null;
   return (
     <div className="gn-modal-backdrop" role="presentation">
@@ -10,6 +10,7 @@ export default function OcrFailureDialog({ open, onRetake, onManual, onClose }) 
         </button>
         <span className="gn-modal-icon"><Icon name="warning" size={28} /></span>
         <h2 id="ocr-failure-title">Couldn’t capture details.</h2>
+        <p className="ocr-failure-message">{message}</p>
         <div className="gn-modal-actions">
           <button type="button" className="button primary" onClick={onRetake}>
             <Icon name="camera" size={17} /> Scan again
