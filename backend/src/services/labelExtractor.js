@@ -1,4 +1,4 @@
-const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+const GEMINI_MODEL = 'gemini-2.5-flash'; // or gemini-1.5-flash / gemini-3.5-flash-lite
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const EXTRACTION_PROMPT = `You are reading a photo of a pharmaceutical/consumer product label sold in Nigeria.
@@ -16,25 +16,14 @@ Field definitions — be precise:
 - productName: the specific product name as printed (e.g. "Nivea Radiant & Beauty Even Glow Body Lotion").
 - manufacturer: the LEGAL COMPANY that made the product — NOT the brand name on the front of the pack.
   Look specifically for text like "Manufactured by", "Made by", "Distributed by", or a company name
-  followed by a legal suffix (Ltd, PLC, GmbH, AG, Inc, Limited, Co). This is usually printed in smaller
-  text on the back/side of the pack, often near the registration number or address.
-  Example: if the front says "NIVEA" in large letters but the back says "Manufactured by Beiersdorf AG",
-  the manufacturer is "Beiersdorf AG", NOT "Nivea" — Nivea is a brand, not the manufacturing company.
-  If no distinct manufacturer company name is printed anywhere and only a brand name exists, use that
-  brand name as a last resort, but prefer a real company name whenever one is visible.
+  followed by a legal suffix (Ltd, PLC, GmbH, AG, Inc, Limited, Co).
 - registrationNumber: the NAFDAC registration number, usually printed as "NAFDAC Reg. No." or similar.
-- expiryDate: may be printed in many formats (e.g. "12/2027", "DEC 2027", "27/12/2027") — convert it to
-  YYYY-MM-DD. If only month/year is printed, use the last day of that month.
+- expiryDate: convert it to YYYY-MM-DD. If only month/year is printed, use the last day of that month.
 
 Do not infer or guess a field that isn't legible in the photo.`;
 
 const STRING_FIELDS = ['productName', 'manufacturer', 'registrationNumber'];
 
-/**
- * Checks whether a YYYY-MM-DD string is a real calendar date, not just a
- * regex-shaped one (e.g. rejects 2028-02-31). Mirrors the same check used
- * in labelInputValidator.js for the /api/label-checks boundary.
- */
 function isValidCalendarDate(dateStr) {
   if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr))
     return false;
@@ -47,12 +36,6 @@ function isValidCalendarDate(dateStr) {
   );
 }
 
-/**
- * Trims whitespace on string fields and discards an expiryDate that isn't
- * a genuinely valid calendar date, rather than trusting Gemini's raw
- * output as-is. Never invents a value — a discarded/missing field becomes
- * null, not a guess.
- */
 export function normalizeExtractedFields(fields = {}) {
   const normalized = {};
 
@@ -73,12 +56,6 @@ export function normalizeExtractedFields(fields = {}) {
   return normalized;
 }
 
-/**
- * Merges front/back extraction results. Prefers front's value for a field
- * when present; falls back to back's value otherwise. Neither side is
- * assumed authoritative — this is a simple "take whichever side actually
- * read something" merge, not a front-vs-back specialization.
- */
 export function mergeExtractedFields(front, back) {
   const merged = {};
   for (const key of [...STRING_FIELDS, 'expiryDate']) {
@@ -87,35 +64,28 @@ export function mergeExtractedFields(front, back) {
   return merged;
 }
 
-/**
- * Sends one photo to Gemini and returns extracted fields. Fails closed —
- * any error returns a result with success:false rather than throwing,
- * so the controller can respond gracefully instead of 500ing.
- */
-export async function extractLabelFields(imageBuffer, mimeType, deps = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const fetchFn = deps.fetch || fetch;
+async function requestGemini(imageItem, apiKey, fetchFn) {
+  if (!imageItem?.buffer) return null;
 
-  if (!apiKey) {
-    return { success: false, reason: 'Gemini API key not configured.' };
-  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
     const res = await fetchFn(GEMINI_URL, {
       method: 'POST',
-      headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+      headers: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         contents: [
           {
             parts: [
               { text: EXTRACTION_PROMPT },
               {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: imageBuffer.toString('base64'),
+                inlineData: {
+                  mimeType: imageItem.mimeType || 'image/jpeg',
+                  data: imageItem.buffer.toString('base64'),
                 },
               },
             ],
@@ -124,25 +94,59 @@ export async function extractLabelFields(imageBuffer, mimeType, deps = {}) {
       }),
       signal: controller.signal,
     });
-    clearTimeout(timeout);
 
     if (!res.ok) {
-      return {
-        success: false,
-        reason: `Gemini request failed (${res.status}).`,
-      };
+      const errText = await res.text().catch(() => '');
+      console.error(`Gemini call error (${res.status}):`, errText);
+      return null;
     }
 
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    const cleaned = text?.replace(/^```json\s*|\s*```$/g, '');
+    if (!text) return null;
+
+    const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
     const parsed = JSON.parse(cleaned);
+    return normalizeExtractedFields(parsed);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Extracts label fields from the images object passed by extractLabelController
+ * @param {Object} images - { front: { buffer, mimeType }, back: { buffer, mimeType } }
+ */
+export async function extractLabelFields(images, deps = {}) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const fetchFn = deps.fetch || fetch;
+
+  if (!apiKey) {
+    return { success: false, reason: 'Gemini API key not configured.' };
+  }
+
+  try {
+    // Process front and back images in parallel
+    const [frontResult, backResult] = await Promise.all([
+      requestGemini(images.front, apiKey, fetchFn),
+      requestGemini(images.back, apiKey, fetchFn),
+    ]);
+
+    const merged = mergeExtractedFields(frontResult, backResult);
+
+    // If at least one field was found, mark as success
+    const hasAnyField = Object.values(merged).some((val) => val !== null);
 
     return {
       success: true,
-      fields: normalizeExtractedFields(parsed),
+      fields: merged,
+      status: hasAnyField ? 'success' : 'extraction_unavailable',
     };
   } catch (err) {
-    return { success: false, reason: `Extraction failed: ${err.message}` };
+    console.error('Extraction handler failed:', err);
+    return {
+      success: false,
+      reason: `Extraction failed: ${err.message}`,
+    };
   }
 }
