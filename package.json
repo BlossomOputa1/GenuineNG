@@ -7,5 +7,8 @@
     "data:validate": "node data/scripts/validate_dataset.js",
     "test:backend": "npm --prefix backend test",
     "test:frontend-logic": "npm --prefix frontend run test:logic"
+  },
+  "dependencies": {
+    "express-rate-limit": "^8.7.0"
   }
 }
