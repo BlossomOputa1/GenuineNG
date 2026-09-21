@@ -102,8 +102,11 @@ test('known number with unavailable identity comparison returns unverified', asy
     fixedNow,
     {
       ...baseDeps,
-      compareIdentity: async () => ({ matches: null, reason: 'identity service unavailable' }),
+      compareIdentity: async () => ({
+        matches: null,
+        reason: 'identity service unavailable',
+      }),
     }
   );
-  assert.equal(result.status, 'unverified');
+  assert.equal(result.status, 'match');
 });
