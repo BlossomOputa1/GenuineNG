@@ -1,5 +1,5 @@
-import { buildVerificationPayload } from './labelPayload';
-import { getApiErrorMessage } from './errorShape';
+import { buildVerificationPayload } from './labelPayload.js';
+import { getApiErrorMessage } from './errorShape.js';
 
 const configuredBase = (
   import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
