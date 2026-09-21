@@ -24,7 +24,7 @@ const upload = multer({
 const router = express.Router();
 
 router.post(
-  '/',
+  '/extract-label',
   upload.fields([
     { name: 'front', maxCount: 1 },
     { name: 'back', maxCount: 1 },

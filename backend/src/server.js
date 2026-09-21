@@ -81,7 +81,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.post('/api/extract-label', apiLimiter, extractLabelRouter);
+app.use('/api', apiLimiter, extractLabelRouter);
 app.post('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
 

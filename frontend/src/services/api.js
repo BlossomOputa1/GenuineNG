@@ -1,8 +1,10 @@
 import { buildVerificationPayload } from './labelPayload';
 import { getApiErrorMessage } from './errorShape';
 
-const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
-const API_BASE_URL = configuredBase || (import.meta.env.DEV ? 'http://localhost:4000' : '');
+const configuredBase = (
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
+)?.trim();
+const API_BASE_URL = configuredBase || (import.meta.env.DEV ? 'http://localhost:4000' : 'https://genuineng.onrender.com');
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
