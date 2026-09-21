@@ -39,11 +39,7 @@ export function validateScanInput(body) {
       errors.push('checks must be an array.');
     } else {
       for (const check of body.checks) {
-        if (
-          !['registration', 'expiry', 'recall', 'ingredients'].includes(
-            check.check_type
-          )
-        ) {
+        if (!['registration', 'expiry'].includes(check.check_type)) {
           errors.push(`Invalid check_type: ${check.check_type}`);
         }
         if (
