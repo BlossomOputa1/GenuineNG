@@ -4,6 +4,6 @@ import { validateLabelChecksRequest } from '../middleware/validation.js';
 // import { runLabelVerification } from '../../../frontend/src/services/api.js';
 
 const router = express.Router();
-router.post('/', validateLabelChecksRequest, runLabelChecks, runLabelVerification);
+router.post('/', validateLabelChecksRequest, runLabelChecks);
 
 export default router;
