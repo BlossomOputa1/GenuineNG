@@ -178,7 +178,8 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
         setFields(extracted);
 
         const readFailureMessage = output?.status === 'error' ? getApiErrorMessage(output) : '';
-        if (output?.status !== 'completed' || missingRequiredIdentity(extracted).length) {
+        const extractionSucceeded = output?.status === 'completed' || output?.status === 'success';
+        if (!extractionSucceeded || missingRequiredIdentity(extracted).length) {
           setPartialFields(extracted);
           setFields({ ...emptyFields, ...extracted });
           setStage('capture');

@@ -23,18 +23,33 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(CACHE_NAME);
-        return (await cache.match('/index.html')) || cache.match('/');
-      })
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch (error) {
+          const cache = await caches.open(CACHE_NAME);
+          return (await cache.match('/index.html')) || (await cache.match('/')) || Response.error();
+        }
+      })()
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then(cached => cached || fetch(request))
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(request);
+      if (cached) return cached;
+
+      try {
+        return await fetch(request);
+      } catch (error) {
+        return (await cache.match(request)) || (await cache.match('/index.html')) || (await cache.match('/')) || Response.error();
+      }
+    })()
   );
 });
