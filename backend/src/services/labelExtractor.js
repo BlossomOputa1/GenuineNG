@@ -1,4 +1,4 @@
-const GEMINI_MODEL = 'gemini-3.5-flash-lite'; // or gemini-1.5-flash / gemini-3.5-flash-lite
+const GEMINI_MODEL = 'gemini-1.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const GEMINI_TIMEOUT_MS = 45_000;
 const EXTRACTION_TIMEOUT_MESSAGE =
@@ -70,9 +70,6 @@ export function mergeExtractedFields(front, back) {
 async function requestGemini(imageItem, apiKey, fetchFn) {
   if (!imageItem?.buffer) return null;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
-
   try {
     const res = await fetchFn(GEMINI_URL, {
       method: 'POST',
@@ -95,12 +92,17 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
           },
         ],
       }),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      console.error(`Gemini call error (${res.status}):`, errText);
+      console.error('Gemini image extraction request failed:', {
+        status: res.status,
+        statusText: res.statusText,
+        error: errText,
+        originalName: imageItem.originalName,
+      });
       return null;
     }
 
@@ -108,8 +110,23 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) return null;
 
-    const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
-    const parsed = JSON.parse(cleaned);
+    const cleaned = text
+      .replace(/^```json\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseError) {
+      console.error('Gemini returned invalid JSON:', {
+        error: parseError.message,
+        response: text,
+        originalName: imageItem.originalName,
+      });
+      throw new Error('Gemini returned invalid extraction data.');
+    }
+
     return normalizeExtractedFields(parsed);
   } catch (err) {
     if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
@@ -130,8 +147,6 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
       originalName: imageItem.originalName,
     });
     throw err;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
