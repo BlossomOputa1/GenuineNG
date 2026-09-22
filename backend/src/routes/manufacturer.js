@@ -4,6 +4,7 @@ import { manufacturerAuthMiddleware } from '../middleware/manufacturerAuthMiddle
 import {
   registerProduct,
   createBatchController,
+  generateCodesController,
 } from '../controllers/manufacturerController.js';
 
 const router = express.Router();
@@ -19,6 +20,12 @@ router.post(
   authMiddleware,
   manufacturerAuthMiddleware,
   createBatchController
+);
+router.post(
+  '/batches/:id/generate-codes',
+  authMiddleware,
+  manufacturerAuthMiddleware,
+  generateCodesController
 );
 
 export default router;
