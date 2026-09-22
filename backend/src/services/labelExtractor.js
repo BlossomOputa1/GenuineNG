@@ -1,4 +1,5 @@
-const GEMINI_MODEL = 'gemini-1.5-flash';
+// Use gemini-2.0-flash or gemini-2.5-flash on v1beta
+const GEMINI_MODEL = 'gemini-2.0-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const GEMINI_TIMEOUT_MS = 45_000;
 const EXTRACTION_TIMEOUT_MESSAGE =
