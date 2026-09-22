@@ -32,3 +32,42 @@ export function validateProductInput(body) {
     },
   };
 }
+// ...keep validateProductInput as-is, add this below it:
+
+export function validateBatchInput(body) {
+  const errors = [];
+
+  const productId =
+    typeof body?.productId === 'string' ? body.productId.trim() : '';
+  const batchCode =
+    typeof body?.batchCode === 'string' ? body.batchCode.trim() : '';
+  const manufacturedDate =
+    typeof body?.manufacturedDate === 'string'
+      ? body.manufacturedDate.trim()
+      : '';
+  const expiryDate =
+    typeof body?.expiryDate === 'string' ? body.expiryDate.trim() : '';
+  const unitsProduced = Number(body?.unitsProduced);
+
+  if (!productId) errors.push('productId is required.');
+  if (!batchCode) errors.push('batchCode is required.');
+  if (!manufacturedDate || Number.isNaN(Date.parse(manufacturedDate))) {
+    errors.push('manufacturedDate must be a valid ISO 8601 date.');
+  }
+  if (!expiryDate || Number.isNaN(Date.parse(expiryDate))) {
+    errors.push('expiryDate must be a valid ISO 8601 date.');
+  }
+  if (!Number.isInteger(unitsProduced) || unitsProduced <= 0) {
+    errors.push('unitsProduced must be a positive integer.');
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors };
+  }
+
+  return {
+    valid: true,
+    errors: [],
+    data: { productId, batchCode, manufacturedDate, expiryDate, unitsProduced },
+  };
+}
