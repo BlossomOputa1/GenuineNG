@@ -1,5 +1,8 @@
 const GEMINI_MODEL = 'gemini-3.5-flash-lite'; // or gemini-1.5-flash / gemini-3.5-flash-lite
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_TIMEOUT_MS = 45_000;
+const EXTRACTION_TIMEOUT_MESSAGE =
+  'Image extraction timed out. Please try again with a clearer photo or enter details manually.';
 
 const EXTRACTION_PROMPT = `You are reading a photo of a pharmaceutical/consumer product label sold in Nigeria.
 Extract exactly these fields if visible. If a field is not visible or not present, use null — never guess.
@@ -68,7 +71,7 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
   if (!imageItem?.buffer) return null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
   try {
     const res = await fetchFn(GEMINI_URL, {
@@ -108,6 +111,25 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
     const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
     const parsed = JSON.parse(cleaned);
     return normalizeExtractedFields(parsed);
+  } catch (err) {
+    if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
+      console.error('Gemini image extraction timed out:', {
+        name: err.name,
+        message: err.message,
+        timeoutMs: GEMINI_TIMEOUT_MS,
+        originalName: imageItem.originalName,
+      });
+      const timeoutError = new Error(EXTRACTION_TIMEOUT_MESSAGE);
+      timeoutError.code = 'EXTRACTION_TIMEOUT';
+      throw timeoutError;
+    }
+
+    console.error('Gemini image extraction failed:', {
+      name: err?.name,
+      message: err?.message,
+      originalName: imageItem.originalName,
+    });
+    throw err;
   } finally {
     clearTimeout(timeout);
   }
@@ -122,6 +144,9 @@ export async function extractLabelFields(images, deps = {}) {
   const fetchFn = deps.fetch || fetch;
 
   if (!apiKey) {
+    console.error(
+      'GEMINI_API_KEY is missing; image extraction cannot start.'
+    );
     return { success: false, reason: 'Gemini API key not configured.' };
   }
 
@@ -146,7 +171,10 @@ export async function extractLabelFields(images, deps = {}) {
     console.error('Extraction handler failed:', err);
     return {
       success: false,
-      reason: `Extraction failed: ${err.message}`,
+      reason:
+        err?.code === 'EXTRACTION_TIMEOUT'
+          ? err.message
+          : `Extraction failed: ${err.message}`,
     };
   }
 }

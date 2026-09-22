@@ -1,5 +1,6 @@
 const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_TIMEOUT_MS = 45_000;
 
 /**
  * Asks Gemini whether two (productName, manufacturer) pairs plausibly
@@ -12,6 +13,9 @@ export async function compareProductIdentity(extracted, record) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
+    console.error(
+      'GEMINI_API_KEY is missing; identity comparison cannot start.'
+    );
     return {
       matches: null,
       reason: 'Gemini API key not configured; identity comparison skipped.',
@@ -30,37 +34,54 @@ Respond with ONLY a JSON object, no other text: {"matches": true or false, "reas
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
-    const res = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+    try {
+      const res = await fetch(GEMINI_URL, {
+        method: 'POST',
+        headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        signal: controller.signal,
+      });
 
-    if (!res.ok) {
-      return {
-        matches: null,
-        reason: `Gemini request failed (${res.status}).`,
-      };
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        console.error(`Gemini identity request failed (${res.status}):`, errorText);
+        return {
+          matches: null,
+          reason: `Gemini request failed (${res.status}).`,
+        };
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      const cleaned = text?.replace(/^```json\s*|\s*```$/g, '');
+      const parsed = JSON.parse(cleaned);
+
+      if (typeof parsed.matches !== 'boolean') {
+        return {
+          matches: null,
+          reason: 'Gemini returned an unexpected response shape.',
+        };
+      }
+
+      return { matches: parsed.matches, reason: parsed.reason || '' };
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    const cleaned = text?.replace(/^```json\s*|\s*```$/g, '');
-    const parsed = JSON.parse(cleaned);
-
-    if (typeof parsed.matches !== 'boolean') {
-      return {
-        matches: null,
-        reason: 'Gemini returned an unexpected response shape.',
-      };
-    }
-
-    return { matches: parsed.matches, reason: parsed.reason || '' };
   } catch (err) {
+    if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
+      console.error('Gemini identity comparison timed out:', {
+        name: err.name,
+        message: err.message,
+        timeoutMs: GEMINI_TIMEOUT_MS,
+      });
+      return {
+        matches: null,
+        reason: 'Identity comparison timed out; verification continued without it.',
+      };
+    }
+    console.error('Gemini identity comparison failed:', err);
     return {
       matches: null,
       reason: `Identity comparison unavailable: ${err.message}`,
