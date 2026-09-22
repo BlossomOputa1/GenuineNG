@@ -6,6 +6,7 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ScanPage from "./pages/ScanPage";
 import SignedWorkspacePage from "./pages/SignedWorkspacePage";
+import ManufacturerPortalPage from "./pages/manufacturer/ManufacturerPortalPage";
 import { signOut } from "./services/authService";
 import {
   getDisplayName,
@@ -128,9 +129,11 @@ export default function App() {
     previousPath.current = route.pathname;
   }, [route.pathname]);
   useEffect(() => {
-    const identifier = route.pathname.startsWith("/app/")
-      ? "Saved Check"
-      : {
+    const identifier = route.pathname.startsWith("/manufacturer")
+      ? `Manufacturer · ${route.pathname.split("/").filter(Boolean).slice(-1)[0] === "manufacturer" ? "Overview" : route.pathname.split("/").filter(Boolean).slice(-1)[0].replaceAll("-", " ")}`
+      : route.pathname.startsWith("/app/")
+        ? "Saved Check"
+        : {
           "/scan": "Product Check",
           "/login": "Sign In",
           "/reset-password": "Reset Password",
@@ -189,8 +192,10 @@ export default function App() {
   }
   const isWorkspaceRoute =
     route.pathname === "/app" || route.pathname.startsWith("/app/");
+  const isManufacturerRoute =
+    route.pathname === "/manufacturer" || route.pathname.startsWith("/manufacturer/");
 
-  if (authLoading && isWorkspaceRoute)
+  if (authLoading && (isWorkspaceRoute || isManufacturerRoute))
     return (
       <div className="app-shell">
         <main className="site-main workspace-login-fallback">
@@ -200,6 +205,25 @@ export default function App() {
         </main>
       </div>
     );
+
+  if (isManufacturerRoute) {
+    if (!session)
+      return (
+        <div className="app-shell">
+          <main className="site-main workspace-login-fallback">
+            <LoginPage session={session} navigate={navigate} />
+          </main>
+        </div>
+      );
+    return (
+      <ManufacturerPortalPage
+        routePath={route.pathname}
+        navigate={navigate}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
   if (isWorkspaceRoute) {
     if (!session)
       return (

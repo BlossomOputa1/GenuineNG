@@ -13,8 +13,8 @@ const pageCopy = {
   },
   partners: {
     eyebrow: 'PARTNERS',
-    title: 'Partner information is coming next.',
-    copy: 'This build is Layer 1 only. Partner and manufacturer experiences are deliberately outside the current scope.',
+    title: 'GenuineNG for manufacturers.',
+    copy: 'Approved manufacturers use the Layer 2 portal to manage products, production batches, GenuineNG codes and aggregate scan activity.',
   },
   contact: {
     eyebrow: 'CONTACT',
@@ -32,7 +32,11 @@ export default function PlaceholderPage({ page, navigate }) {
         <span className="eyebrow">{content.eyebrow}</span>
         <h1>{content.title}</h1>
         <p>{content.copy}</p>
-        <button type="button" className="button primary" onClick={() => navigate('/')}>Back to main <Icon name="arrow" size={16} /></button>
+        {page === 'partners' ? (
+          <button type="button" className="button primary" onClick={() => navigate('/manufacturer')}>Open manufacturer portal <Icon name="arrow" size={16} /></button>
+        ) : (
+          <button type="button" className="button primary" onClick={() => navigate('/')}>Back to main <Icon name="arrow" size={16} /></button>
+        )}
       </div>
     </section>
   );

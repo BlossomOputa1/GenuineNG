@@ -265,7 +265,7 @@ export default function SignedWorkspacePage({
           <button
             type="button"
             title="Partners"
-            onClick={() => sidebarNavigate("/partners")}
+            onClick={() => sidebarNavigate("/manufacturer")}
           >
             <Icon name="scan" size={17} />
             <span>Partners</span>
