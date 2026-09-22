@@ -4,26 +4,27 @@ const GEMINI_TIMEOUT_MS = 45_000;
 const EXTRACTION_TIMEOUT_MESSAGE =
   'Image extraction timed out. Please try again with a clearer photo or enter details manually.';
 
-const EXTRACTION_PROMPT = `You are reading a photo of a pharmaceutical/consumer product label sold in Nigeria.
-Extract exactly these fields if visible. If a field is not visible or not present, use null — never guess.
+const EXTRACTION_PROMPT = `You are an OCR and packaging data extraction specialist for consumer goods and pharmaceuticals sold in Nigeria.
+Inspect the provided image(s) carefully. Read all packaging text, including small print, stamps, embossing, and back-panel label details.
 
-Respond with ONLY a JSON object, no other text:
+Return ONLY a valid JSON object with these keys:
 {
   "productName": string or null,
   "manufacturer": string or null,
   "registrationNumber": string or null,
-  "expiryDate": string in YYYY-MM-DD format or null
+  "expiryDate": string or null
 }
 
-Field definitions — be precise:
-- productName: the specific product name as printed (e.g. "Nivea Radiant & Beauty Even Glow Body Lotion").
-- manufacturer: the LEGAL COMPANY that made the product — NOT the brand name on the front of the pack.
-  Look specifically for text like "Manufactured by", "Made by", "Distributed by", or a company name
-  followed by a legal suffix (Ltd, PLC, GmbH, AG, Inc, Limited, Co).
-- registrationNumber: the NAFDAC registration number, usually printed as "NAFDAC Reg. No." or similar.
-- expiryDate: convert it to YYYY-MM-DD. If only month/year is printed, use the last day of that month.
+Field extraction instructions:
+- productName: The prominent brand or trade name printed on the packaging (e.g., brand line + product variant).
+- manufacturer: The entity that produced, manufactured, or packaged the product. Prioritize names following "Mfd by", "Made by", "Packed for", or corporate entities with legal designations (Ltd, PLC, Inc, GmbH). If only a distributor/brand house is listed, extract that company name.
+- registrationNumber: The Nigerian regulatory identification number (NAFDAC). Look for text formatted like "NAFDAC REG NO", "NRN", "Reg No:", or alphanumeric patterns such as "A4-1234", "B4-1234", "04-1234", or "01-1234LL". Extract the full number string.
+- expiryDate: Look for date stamps labeled "EXP", "EXPIRY", "BEST BEFORE", "BB", or dot-matrix printed dates. Convert to YYYY-MM-DD format. If only month and year are printed (e.g., 08/28), set the day to the last day of that month (2028-08-31).
 
-Do not infer or guess a field that isn't legible in the photo.`;
+Rules:
+- Do not add markdown code fences or explanatory prose—return raw JSON only.
+- If a specific field is entirely unreadable or omitted from the packaging, assign null.
+- If text is legible despite slight tilt, glare, or perspective distortion, extract the characters as printed.`;
 
 const STRING_FIELDS = ['productName', 'manufacturer', 'registrationNumber'];
 
@@ -110,10 +111,8 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) return null;
 
-    const cleaned = text
-      .replace(/^```json\s*/i, '')
-      .replace(/\s*```$/, '')
-      .trim();
+    console.log('Gemini raw text output:', text);
+    const cleaned = text.replace(/^```json\s*|\s*```$/g, '').trim();
 
     let parsed;
     try {
