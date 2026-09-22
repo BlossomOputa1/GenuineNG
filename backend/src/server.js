@@ -5,6 +5,7 @@ import { rateLimit } from 'express-rate-limit';
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
+import manufacturerRouter from './routes/manufacturer.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const requiredEnvVars = [
@@ -32,7 +33,8 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN || '')
   .map((value) => value.trim())
   .filter(Boolean);
 
-const previewOriginPattern = /^https:\/\/genuine-ng(?:-[a-z0-9-]+)*\.vercel\.app$/i;
+const previewOriginPattern =
+  /^https:\/\/genuine-ng(?:-[a-z0-9-]+)*\.vercel\.app$/i;
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
@@ -69,7 +71,9 @@ const apiLimiter = rateLimit({
 app.use(express.json({ limit: '32kb' }));
 
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl} | req.ip=${req.ip} | x-forwarded-for=${req.headers['x-forwarded-for'] || '(missing)'}`);
+  console.log(
+    `${new Date().toISOString()} ${req.method} ${req.originalUrl} | req.ip=${req.ip} | x-forwarded-for=${req.headers['x-forwarded-for'] || '(missing)'}`
+  );
   next();
 });
 
@@ -84,6 +88,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api', apiLimiter, extractLabelRouter);
 app.use('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
+app.use('/api/manufacturer', apiLimiter, manufacturerRouter);
 
 app.use('/api', (req, res) => {
   return res.status(404).json({

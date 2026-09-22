@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 
-const FRONT_PATH = 'c:/Users/Danni/Desktop/Hackathon/So Klin front.jpeg';
-const BACK_PATH = 'c:/Users/Danni/Desktop/Hackathon/So Klin back.jpeg';
+const FRONT_PATH =
+  'c:/Users/Danni/Desktop/Hackathon/WhatsApp Image 2026-09-21 at 5.23.36 PM.jpeg';
+const BACK_PATH =
+  'c:/Users/Danni/Desktop/Hackathon/WhatsApp Image 2026-09-21 at 5.23.53 PM.jpeg';
 const BASE_URL = 'http://localhost:4000';
 
 async function main() {
