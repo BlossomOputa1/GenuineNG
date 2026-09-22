@@ -6,6 +6,7 @@ import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
 import manufacturerRouter from './routes/manufacturer.js';
+import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const requiredEnvVars = [
