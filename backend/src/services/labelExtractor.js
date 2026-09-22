@@ -2,6 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const GEMINI_MODEL = 'gemini-3.6-flash';
+const GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+const GEMINI_MAX_RETRIES = 2;
+const GEMINI_RETRY_DELAY_MS = 1_200;
 
 const EXTRACTION_PROMPT = `You are an OCR and packaging data extraction specialist for consumer goods and pharmaceuticals sold in Nigeria.
 Inspect the provided image(s) carefully. Read all packaging text, including small print, stamps, embossing, and back-panel label details.
@@ -70,47 +73,108 @@ export function mergeExtractedFields(front, back) {
 async function requestGemini(imageItem) {
   if (!imageItem?.buffer) return null;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        { text: EXTRACTION_PROMPT },
         {
-          role: 'user',
-          parts: [
-            { text: EXTRACTION_PROMPT },
-            {
-              inlineData: {
-                mimeType: imageItem.mimeType || 'image/jpeg',
-                data: imageItem.buffer.toString('base64'),
-              },
-            },
-          ],
+          inlineData: {
+            mimeType: imageItem.mimeType || 'image/jpeg',
+            data: imageItem.buffer.toString('base64'),
+          },
         },
       ],
-      config: {
-        responseMimeType: 'application/json',
+    },
+  ];
+  const config = {
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: 'OBJECT',
+      properties: {
+        productName: { type: 'STRING', nullable: true },
+        manufacturer: { type: 'STRING', nullable: true },
+        registrationNumber: { type: 'STRING', nullable: true },
+        expiryDate: { type: 'STRING', nullable: true },
       },
-    });
+      required: [
+        'productName',
+        'manufacturer',
+        'registrationNumber',
+        'expiryDate',
+      ],
+    },
+  };
 
-    const text = response.text.trim();
+  const isCapacityError = (error) => {
+    const status = error?.status ?? error?.statusCode;
+    const message = String(error?.message || '').toLowerCase();
+    return status === 503 || message.includes('experiencing high demand');
+  };
+
+  async function generateWithRetries(model) {
+    for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt += 1) {
+      try {
+        return await ai.models.generateContent({
+          model,
+          contents,
+          config,
+        });
+      } catch (error) {
+        const canRetry = isCapacityError(error) && attempt < GEMINI_MAX_RETRIES;
+
+        console.error('Gemini image extraction request failed:', {
+          model,
+          attempt: attempt + 1,
+          status: error?.status ?? error?.statusCode,
+          message: error?.message,
+          retrying: canRetry,
+          originalName: imageItem.originalName,
+        });
+
+        if (!canRetry) throw error;
+        await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAY_MS));
+      }
+    }
+  }
+
+  async function parseResponse(response, model) {
+    const text = response?.text?.trim();
     if (!text) {
       console.error('Gemini returned no extraction text:', {
+        model,
         originalName: imageItem.originalName,
       });
-      return null;
+      throw new Error('Gemini returned no extraction text.');
     }
 
     console.log('Gemini raw text output:', text);
     const parsed = JSON.parse(text);
-
     return normalizeExtractedFields(parsed);
-  } catch (err) {
-    console.error('Gemini image extraction failed; skipping image:', {
-      name: err?.name,
-      message: err?.message,
+  }
+
+  try {
+    const response = await generateWithRetries(GEMINI_MODEL);
+    return await parseResponse(response, GEMINI_MODEL);
+  } catch (primaryError) {
+    console.error('Primary Gemini model failed; trying fallback model:', {
+      model: GEMINI_MODEL,
+      message: primaryError?.message,
       originalName: imageItem.originalName,
     });
-    return null;
+
+    try {
+      const response = await generateWithRetries(GEMINI_FALLBACK_MODEL);
+      return await parseResponse(response, GEMINI_FALLBACK_MODEL);
+    } catch (err) {
+      console.error('Gemini image extraction failed; skipping image:', {
+        model: GEMINI_FALLBACK_MODEL,
+        name: err?.name,
+        message: err?.message,
+        originalName: imageItem.originalName,
+      });
+      return null;
+    }
   }
 }
 
