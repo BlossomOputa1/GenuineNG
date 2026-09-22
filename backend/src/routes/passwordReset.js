@@ -20,7 +20,7 @@ router.post('/request', async (req, res) => {
   const frontendOrigin = (
     process.env.FRONTEND_ORIGIN ||
     'http://localhost:5173'
-  ).trim();
+  ).split(',')[0].trim();
 
   const redirectTo = `${frontendOrigin}/reset-password`;
 
