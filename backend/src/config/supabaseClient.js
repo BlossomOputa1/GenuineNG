@@ -48,5 +48,11 @@ if (!supabaseUrl || !supabaseSecretKey) {
  */
 export const supabase = createClient(
   supabaseUrl,
-  supabaseSecretKey
+  supabaseSecretKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
 );

@@ -8,6 +8,7 @@ import extractLabelRouter from './routes/extractLabel.js';
 import manufacturerRouter from './routes/manufacturer.js';
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import passwordResetRouter from './routes/passwordReset.js'
 
 const requiredEnvVars = [
   'SUPABASE_URL',
@@ -90,6 +91,7 @@ app.use('/api', apiLimiter, extractLabelRouter);
 app.use('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
 app.use('/api/manufacturer', apiLimiter, manufacturerRouter);
+app.use('/api/password-reset', apiLimiter, passwordResetRouter);
 
 app.use('/api', (req, res) => {
   return res.status(404).json({
