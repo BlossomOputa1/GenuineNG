@@ -5,7 +5,18 @@
 // error message. Fails fast at import time if the private key is missing
 // or malformed, per the standing "validate env vars at startup" rule.
 
+// backend/src/services/keyManager.js
+
 import { createPrivateKey, createPublicKey } from 'node:crypto';
+
+// Helper to sanitize PEM formatting passed via environment variables
+function normalizePem(keyString) {
+  if (!keyString) return '';
+  return keyString
+    .replace(/\\n/g, '\n') // Replace literal "\n" strings with real line breaks
+    .replace(/\r/g, '')     // Strip carriage returns if copied from Windows
+    .trim();
+}
 
 function loadPrivateKey() {
   const raw = process.env.GENUINENG_ED25519_PRIVATE_KEY;
@@ -17,12 +28,12 @@ function loadPrivateKey() {
     process.exit(1);
   }
 
+  const normalized = normalizePem(raw);
+
   try {
-    return createPrivateKey({ key: raw, format: 'pem', type: 'pkcs8' });
-  } catch {
-    // Deliberately no err.message in the log — a malformed-key parse
-    // error can sometimes echo fragments of the input, and this is a
-    // private key. Fail with a generic message only.
+    return createPrivateKey({ key: normalized, format: 'pem' });
+  } catch (err) {
+    // Helpful debug tip: If it still fails, err is caught here
     console.error(
       'GENUINENG_ED25519_PRIVATE_KEY is set but could not be parsed as a valid PKCS8 PEM key.'
     );
@@ -40,8 +51,10 @@ function loadPublicKey() {
     process.exit(1);
   }
 
+  const normalized = normalizePem(raw);
+
   try {
-    return createPublicKey({ key: raw, format: 'pem', type: 'spki' });
+    return createPublicKey({ key: normalized, format: 'pem' });
   } catch {
     console.error(
       'GENUINENG_ED25519_PUBLIC_KEY is set but could not be parsed as a valid SPKI PEM key.'
@@ -61,8 +74,6 @@ function loadKeyVersion() {
   return version;
 }
 
-// Loaded once at module import time (server startup), not per-request —
-// matches "avoid heavy work inside request handlers."
 const privateKey = loadPrivateKey();
 const publicKey = loadPublicKey();
 const keyVersion = loadKeyVersion();
