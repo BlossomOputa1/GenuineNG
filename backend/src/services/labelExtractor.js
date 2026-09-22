@@ -92,6 +92,24 @@ async function requestGemini(imageItem, apiKey, fetchFn) {
             ],
           },
         ],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              productName: { type: 'STRING', nullable: true },
+              manufacturer: { type: 'STRING', nullable: true },
+              registrationNumber: { type: 'STRING', nullable: true },
+              expiryDate: { type: 'STRING', nullable: true },
+            },
+            required: [
+              'productName',
+              'manufacturer',
+              'registrationNumber',
+              'expiryDate',
+            ],
+          },
+        },
       }),
       signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
     });
