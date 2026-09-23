@@ -5,6 +5,7 @@ import {
 import { createProduct } from '../services/productService.js';
 import { createBatch } from '../services/batchService.js';
 import { generateCodesForBatch } from '../services/codeGenerationService.js';
+import { getScanActivity } from '../services/scanActivityService.js';
 
 export async function registerProduct(req, res, next) {
   try {
@@ -89,6 +90,27 @@ export async function generateCodesController(req, res, next) {
     });
 
     return res.status(201).json({ result });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        error: { code: err.code || 'ERROR', message: err.message },
+      });
+    }
+    next(err);
+  }
+}
+
+export async function scanActivityController(req, res, next) {
+  try {
+    // Read-only aggregate of the manufacturer's own data — uses
+    // req.supabase (RLS-scoped), same pattern as registerProduct/
+    // createBatchController above, unlike generateCodesController.
+    const activity = await getScanActivity({
+      supabase: req.supabase,
+      manufacturerId: req.manufacturer.id,
+    });
+
+    return res.status(200).json({ activity });
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({

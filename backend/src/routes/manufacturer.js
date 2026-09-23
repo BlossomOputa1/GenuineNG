@@ -5,6 +5,7 @@ import {
   registerProduct,
   createBatchController,
   generateCodesController,
+  scanActivityController,
 } from '../controllers/manufacturerController.js';
 
 const router = express.Router();
@@ -26,6 +27,12 @@ router.post(
   authMiddleware,
   manufacturerAuthMiddleware,
   generateCodesController
+);
+router.get(
+  '/scan-activity',
+  authMiddleware,
+  manufacturerAuthMiddleware,
+  scanActivityController
 );
 
 export default router;
