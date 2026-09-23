@@ -64,3 +64,69 @@ export async function createBatch({
 
   return data;
 }
+
+// Read-only aggregate for the manufacturer's Overview/Batches pages
+// and the Generate Codes batch-selection dropdown. Same RLS-scoped
+// req.supabase pattern as createBatch above.
+export async function getBatchesForManufacturer({ supabase, manufacturerId }) {
+  const { data: batches, error: batchesError } = await supabase
+    .from('batches')
+    .select(
+      'id, batch_code, manufactured_date, expiry_date, units_produced, created_at, product_id, products!inner(id, name, manufacturer_id)'
+    )
+    .eq('products.manufacturer_id', manufacturerId)
+    .order('created_at', { ascending: false });
+
+  if (batchesError) {
+    const err = new Error('Failed to load batches.');
+    err.statusCode = 500;
+    err.cause = batchesError;
+    throw err;
+  }
+
+  if (!batches || batches.length === 0) {
+    return [];
+  }
+
+  const batchIds = batches.map((b) => b.id);
+
+  const { data: units, error: unitsError } = await supabase
+    .from('unit_codes')
+    .select('unit_id, batch_id')
+    .in('batch_id', batchIds);
+
+  if (unitsError) {
+    const err = new Error('Failed to load unit codes for batch stats.');
+    err.statusCode = 500;
+    err.cause = unitsError;
+    throw err;
+  }
+
+  const codesGeneratedByBatch = new Map();
+  for (const unit of units || []) {
+    codesGeneratedByBatch.set(
+      unit.batch_id,
+      (codesGeneratedByBatch.get(unit.batch_id) || 0) + 1
+    );
+  }
+
+  return batches.map((b) => {
+    const codesGenerated = codesGeneratedByBatch.get(b.id) || 0;
+    return {
+      id: b.id,
+      batchCode: b.batch_code,
+      productId: b.product_id,
+      productName: b.products.name,
+      manufacturedDate: b.manufactured_date,
+      expiryDate: b.expiry_date,
+      unitsProduced: b.units_produced,
+      codesGenerated,
+      // Deliberately just two states for now, matching "deliberately
+      // simple" elsewhere — a partial-generation state can't currently
+      // happen anyway, since generate-codes is all-or-nothing per batch
+      // (fails loud and stops on first chunk error, no partial retry path).
+      status:
+        codesGenerated >= b.units_produced ? 'generated' : 'ready_to_generate',
+    };
+  });
+}

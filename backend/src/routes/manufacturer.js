@@ -3,7 +3,9 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import { manufacturerAuthMiddleware } from '../middleware/manufacturerAuthMiddleware.js';
 import {
   registerProduct,
+  listProductsController,
   createBatchController,
+  listBatchesController,
   generateCodesController,
   scanActivityController,
   exportBatchController,
@@ -17,11 +19,23 @@ router.post(
   manufacturerAuthMiddleware,
   registerProduct
 );
+router.get(
+  '/products',
+  authMiddleware,
+  manufacturerAuthMiddleware,
+  listProductsController
+);
 router.post(
   '/batches',
   authMiddleware,
   manufacturerAuthMiddleware,
   createBatchController
+);
+router.get(
+  '/batches',
+  authMiddleware,
+  manufacturerAuthMiddleware,
+  listBatchesController
 );
 router.post(
   '/batches/:id/generate-codes',

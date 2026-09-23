@@ -2,8 +2,14 @@ import {
   validateProductInput,
   validateBatchInput,
 } from '../validators/manufacturerValidators.js';
-import { createProduct } from '../services/productService.js';
-import { createBatch } from '../services/batchService.js';
+import {
+  createProduct,
+  getProductsForManufacturer,
+} from '../services/productService.js';
+import {
+  createBatch,
+  getBatchesForManufacturer,
+} from '../services/batchService.js';
 import { generateCodesForBatch } from '../services/codeGenerationService.js';
 import { getScanActivity } from '../services/scanActivityService.js';
 import { buildBatchExportStream } from '../services/exportService.js';
@@ -34,6 +40,26 @@ export async function registerProduct(req, res, next) {
   }
 }
 
+export async function listProductsController(req, res, next) {
+  try {
+    // Read-only aggregate — same RLS-scoped req.supabase pattern as
+    // registerProduct above.
+    const products = await getProductsForManufacturer({
+      supabase: req.supabase,
+      manufacturerId: req.manufacturer.id,
+    });
+
+    return res.status(200).json({ products });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        error: { code: err.code || 'ERROR', message: err.message },
+      });
+    }
+    next(err);
+  }
+}
+
 export async function createBatchController(req, res, next) {
   try {
     const { valid, errors, data } = validateBatchInput(req.body);
@@ -55,6 +81,26 @@ export async function createBatchController(req, res, next) {
     });
 
     return res.status(201).json({ batch });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        error: { code: err.code || 'ERROR', message: err.message },
+      });
+    }
+    next(err);
+  }
+}
+
+export async function listBatchesController(req, res, next) {
+  try {
+    // Read-only aggregate — same RLS-scoped req.supabase pattern as
+    // createBatchController above.
+    const batches = await getBatchesForManufacturer({
+      supabase: req.supabase,
+      manufacturerId: req.manufacturer.id,
+    });
+
+    return res.status(200).json({ batches });
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({
