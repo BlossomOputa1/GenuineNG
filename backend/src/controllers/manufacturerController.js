@@ -6,6 +6,7 @@ import { createProduct } from '../services/productService.js';
 import { createBatch } from '../services/batchService.js';
 import { generateCodesForBatch } from '../services/codeGenerationService.js';
 import { getScanActivity } from '../services/scanActivityService.js';
+import { buildBatchExportStream } from '../services/exportService.js';
 
 export async function registerProduct(req, res, next) {
   try {
@@ -111,6 +112,40 @@ export async function scanActivityController(req, res, next) {
     });
 
     return res.status(200).json({ activity });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        error: { code: err.code || 'ERROR', message: err.message },
+      });
+    }
+    next(err);
+  }
+}
+
+export async function exportBatchController(req, res, next) {
+  try {
+    const { id: batchId } = req.params;
+
+    if (!batchId) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'Batch id is required in the URL.',
+        },
+      });
+    }
+
+    // buildBatchExportStream writes directly to res (streaming ZIP) —
+    // it does not return JSON, so there is no res.json() call here
+    // on success. Note: if it throws AFTER streaming has already
+    // started, this catch block's res.status().json() will not work
+    // cleanly, since headers are already sent — see LAYER2_PROGRESS.md.
+    await buildBatchExportStream({
+      supabase: req.supabase,
+      manufacturerId: req.manufacturer.id,
+      batchId,
+      res,
+    });
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({

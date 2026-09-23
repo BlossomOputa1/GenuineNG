@@ -6,6 +6,7 @@ import {
   createBatchController,
   generateCodesController,
   scanActivityController,
+  exportBatchController,
 } from '../controllers/manufacturerController.js';
 
 const router = express.Router();
@@ -33,6 +34,12 @@ router.get(
   authMiddleware,
   manufacturerAuthMiddleware,
   scanActivityController
+);
+router.get(
+  '/batches/:id/export',
+  authMiddleware,
+  manufacturerAuthMiddleware,
+  exportBatchController
 );
 
 export default router;
