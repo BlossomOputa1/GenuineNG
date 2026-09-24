@@ -229,6 +229,7 @@ export default function App() {
       <ManufacturerPortalPage
         routePath={route.pathname}
         navigate={navigate}
+        session={session}
         onSignOut={handleSignOut}
       />
     );

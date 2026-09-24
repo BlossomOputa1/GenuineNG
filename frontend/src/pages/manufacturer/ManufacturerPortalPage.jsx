@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "../../components/Icon";
 import ManufacturerSidebar from "../../components/ManufacturerSidebar";
+import { supabase } from "../../services/supabase";
 import ManufacturerBatchesPage from "./ManufacturerBatchesPage";
 import ManufacturerDashboardPage from "./ManufacturerDashboardPage";
 import ManufacturerProductsPage from "./ManufacturerProductsPage";
@@ -18,11 +19,46 @@ function pageTitle(routePath) {
   return "Overview";
 }
 
-export default function ManufacturerPortalPage({ routePath, navigate, onSignOut }) {
+export default function ManufacturerPortalPage({ routePath, navigate, session, onSignOut }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
   const title = pageTitle(routePath);
-  const profile = { companyName: "Approved manufacturer", initials: "AM", status: "Approved manufacturer" };
+
+  useEffect(() => {
+    let active = true;
+    async function loadProfile() {
+      setProfileLoading(true);
+      setProfileError("");
+      try {
+        if (!supabase || !session?.user?.id) throw new Error("Your account session is unavailable.");
+        const { data, error } = await supabase
+          .from("manufacturers")
+          .select("company_name, approved, approved_at")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (active) {
+          setProfile(data?.approved ? {
+            companyName: data.company_name || "Approved manufacturer",
+            initials: (data.company_name || "AM").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+            status: "Approved manufacturer",
+          } : null);
+        }
+      } catch (problem) {
+        if (active) setProfileError(problem.message || "Could not verify manufacturer access.");
+      } finally {
+        if (active) setProfileLoading(false);
+      }
+    }
+    loadProfile();
+    return () => { active = false; };
+  }, [session?.user?.id]);
+
+  if (profileLoading) return <main className="manufacturer-main"><div className="manufacturer-content"><div className="empty-state"><p>Verifying manufacturer access...</p></div></div></main>;
+  if (profileError || !profile) return <main className="manufacturer-main"><div className="manufacturer-content"><div className="empty-state"><h1>Manufacturer access required</h1><p>{profileError || "This account is not an approved manufacturer."}</p><button type="button" className="manufacturer-secondary-button" onClick={() => navigate("/app")}>Go to workspace</button></div></div></main>;
 
   let content = <ManufacturerDashboardPage navigate={navigate} profile={profile} />;
   if (routePath === "/manufacturer/products") content = <ManufacturerProductsPage />;

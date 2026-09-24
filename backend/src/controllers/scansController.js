@@ -33,6 +33,7 @@ export async function listScans(req, res) {
       .select(
         'id, created_at, manufacturer_text, registration_number, batch_number, expiry_date'
       )
+      .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(limit);
@@ -51,6 +52,7 @@ export async function listScans(req, res) {
     const nextCursor = data.length === limit ? lastRow?.created_at || null : null;
     return res.json({ data, next_cursor: nextCursor });
   } catch (error) {
+    console.error('Scan fetch error:', error);
     console.error('Unexpected scan list error:', error);
     return res.status(500).json({
       error: { code: 'SCANS_LIST_FAILED', message: 'Could not list scans.' },
@@ -71,6 +73,7 @@ export async function getScan(req, res) {
     const { data: scan, error: scanError } = await req.supabase
       .from('scans')
       .select('*')
+      .eq('user_id', req.user.id)
       .eq('id', id)
       .maybeSingle();
 
@@ -100,6 +103,7 @@ export async function getScan(req, res) {
 
     return res.json({ ...scan, checks });
   } catch (error) {
+    console.error('Scan fetch error:', error);
     console.error('Unexpected scan detail error:', error);
     return res.status(500).json({
       error: { code: 'SCAN_FETCH_FAILED', message: 'Could not load scan.' },
@@ -163,6 +167,7 @@ export async function deleteScan(req, res) {
     const { data, error } = await req.supabase
       .from('scans')
       .delete()
+      .eq('user_id', req.user.id)
       .eq('id', id)
       .select()
       .maybeSingle();

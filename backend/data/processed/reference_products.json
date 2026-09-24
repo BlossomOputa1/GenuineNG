@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "name": "GenuineNG Layer 1 fallback fixtures",
+    "checkedAt": "2026-09-18",
+    "coverage": "Fallback seed data for backend-only deployments. Replace with the reviewed Greenbook export in production."
+  },
+  "products": [
+    {
+      "productName": "GenuineNG Sample Food A",
+      "registrationNumber": "GN-FOOD-0001",
+      "manufacturer": "GenuineNG Demo Foods Ltd.",
+      "status": "fixture"
+    },
+    {
+      "productName": "GenuineNG Sample Drink B",
+      "registrationNumber": "GN-DRINK-0002",
+      "manufacturer": "GenuineNG Demo Beverages Ltd.",
+      "status": "fixture"
+    },
+    {
+      "productName": "GenuineNG Sample Cereal C",
+      "registrationNumber": "GN-FOOD-0003",
+      "manufacturer": "GenuineNG Demo Foods Ltd.",
+      "status": "fixture"
+    },
+    {
+      "productName": "GenuineNG Sample Cosmetic D",
+      "registrationNumber": "GN-COS-0004",
+      "manufacturer": "GenuineNG Demo Care Ltd.",
+      "status": "fixture"
+    }
+  ]
+}

@@ -25,7 +25,20 @@ export async function authMiddleware(req, res, next) {
     });
   }
 
-  const { data, error } = await supabase.auth.getUser(token);
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabase.auth.getUser(token));
+  } catch (authError) {
+    console.error('Scan fetch error:', authError);
+    console.error('Supabase token validation failed:', authError?.message || authError);
+    return res.status(401).json({
+      error: {
+        code: 'UNAUTHENTICATED',
+        message: 'Invalid or expired session.',
+      },
+    });
+  }
 
   if (error || !data?.user) {
     return res.status(401).json({

@@ -15,11 +15,14 @@ const requiredEnvVars = [
   'SUPABASE_URL',
   'SUPABASE_PUBLISHABLE_KEY',
   'SUPABASE_SECRET_KEY',
+  'GENUINENG_ED25519_PRIVATE_KEY',
+  'GENUINENG_ED25519_PUBLIC_KEY',
+  'GENUINENG_KEY_VERSION',
 ];
 const missing = requiredEnvVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error(
-    `Missing required environment variables: ${missing.join(', ')}`
+    `Startup aborted. Missing required environment variables: ${missing.join(', ')}. Configure these in the Render service environment.`
   );
   process.exit(1);
 }
