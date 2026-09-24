@@ -57,7 +57,7 @@ export async function getScanActivity({ supabase, manufacturerId }) {
 
   const { data: events, error: eventsError } = await supabase
     .from('verification_events')
-    .select('unit_id, result')
+    .select('unit_id, result, reuse_status')
     .in('unit_id', unitIds);
 
   if (eventsError) {
@@ -80,6 +80,7 @@ export async function getScanActivity({ supabase, manufacturerId }) {
       totalScans: 0,
       genuineScans: 0,
       notGenuineScans: 0,
+      reuseSignals: 0,
     });
   }
 
@@ -96,6 +97,12 @@ export async function getScanActivity({ supabase, manufacturerId }) {
       entry.genuineScans += 1;
     } else {
       entry.notGenuineScans += 1;
+    }
+    // Old rows from before the reuse_status column existed will have
+    // it as null — those simply don't count toward reuseSignals,
+    // which is correct: we genuinely don't know their reuse status.
+    if (event.reuse_status === 'possible_reuse') {
+      entry.reuseSignals += 1;
     }
   }
 

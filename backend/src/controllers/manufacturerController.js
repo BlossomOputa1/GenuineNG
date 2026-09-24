@@ -12,7 +12,11 @@ import {
 } from '../services/batchService.js';
 import { generateCodesForBatch } from '../services/codeGenerationService.js';
 import { getScanActivity } from '../services/scanActivityService.js';
-import { buildBatchExportStream } from '../services/exportService.js';
+import {
+  sendCsvExport,
+  sendManifestExport,
+  streamQrZipExport,
+} from '../services/exportService.js';
 
 export async function registerProduct(req, res, next) {
   try {
@@ -168,9 +172,12 @@ export async function scanActivityController(req, res, next) {
   }
 }
 
+const VALID_EXPORT_FORMATS = ['csv', 'manifest', 'qr-zip'];
+
 export async function exportBatchController(req, res, next) {
   try {
     const { id: batchId } = req.params;
+    const { format } = req.query;
 
     if (!batchId) {
       return res.status(400).json({
@@ -181,17 +188,34 @@ export async function exportBatchController(req, res, next) {
       });
     }
 
-    // buildBatchExportStream writes directly to res (streaming ZIP) —
-    // it does not return JSON, so there is no res.json() call here
-    // on success. Note: if it throws AFTER streaming has already
-    // started, this catch block's res.status().json() will not work
-    // cleanly, since headers are already sent — see LAYER2_PROGRESS.md.
-    await buildBatchExportStream({
+    if (!format || !VALID_EXPORT_FORMATS.includes(format)) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_INPUT',
+          message: `format query param is required and must be one of: ${VALID_EXPORT_FORMATS.join(', ')}.`,
+        },
+      });
+    }
+
+    const shared = {
       supabase: req.supabase,
       manufacturerId: req.manufacturer.id,
       batchId,
       res,
-    });
+    };
+
+    // Each function streams directly to res (no res.json() on
+    // success). If one throws AFTER streaming has already started,
+    // this catch block's res.status().json() won't work cleanly —
+    // headers are already sent. Same known limitation as before, see
+    // LAYER2_PROGRESS.md.
+    if (format === 'csv') {
+      await sendCsvExport(shared);
+    } else if (format === 'manifest') {
+      await sendManifestExport(shared);
+    } else {
+      await streamQrZipExport(shared);
+    }
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({
