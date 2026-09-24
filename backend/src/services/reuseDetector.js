@@ -19,6 +19,7 @@ export async function recordVerificationAndCheckReuse({ unitId, result }) {
       unit_id: unitId,
       was_online: true,
       result,
+      reuse_status: 'unavailable',
     });
     return 'unavailable';
   }
@@ -31,6 +32,7 @@ export async function recordVerificationAndCheckReuse({ unitId, result }) {
       unit_id: unitId,
       was_online: true,
       result,
+      reuse_status: reuseStatus,
     });
 
   if (insertError) {

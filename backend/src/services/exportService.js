@@ -1,23 +1,23 @@
-// Builds a ZIP containing a CSV, individual QR PNGs, and a print
-// manifest for every unit in a batch. Uses the caller's RLS-scoped
-// req.supabase — this only reads unit_codes the manufacturer already
-// owns (backed by the existing select policy), no bypass needed here.
+// Builds exportable batch data in one of three formats: a CSV of
+// unit_id/unit_index, a print manifest (bare unit_id list), or a ZIP
+// of QR PNGs. Split into three functions rather than always bundling
+// everything, so a CSV-only request doesn't pay the cost of
+// generating hundreds of QR images it'll never use.
+//
+// Uses the caller's RLS-scoped req.supabase — this only reads
+// unit_codes the manufacturer already owns (backed by the existing
+// select policy), no bypass needed here.
 
 import { createRequire } from 'node:module';
 import { generateQrPng } from './qrGenerator.js';
 
-// The installed archiver version exports ZipArchive as a class
-// (new archiver API), not the older archiver('zip', opts) factory
-// function most tutorials assume.
+// Installed archiver version exports ZipArchive as a class, not the
+// older archiver('zip', opts) factory most docs assume — see
+// LAYER2_PROGRESS.md.
 const require = createRequire(import.meta.url);
 const { ZipArchive } = require('archiver');
 
-export async function buildBatchExportStream({
-  supabase,
-  manufacturerId,
-  batchId,
-  res,
-}) {
+async function loadOwnedBatchWithUnits({ supabase, manufacturerId, batchId }) {
   const { data: batch, error: batchError } = await supabase
     .from('batches')
     .select('id, batch_code, product_id, products!inner(manufacturer_id)')
@@ -58,35 +58,88 @@ export async function buildBatchExportStream({
     throw err;
   }
 
+  return { batch, units };
+}
+
+export async function sendCsvExport({
+  supabase,
+  manufacturerId,
+  batchId,
+  res,
+}) {
+  const { batch, units } = await loadOwnedBatchWithUnits({
+    supabase,
+    manufacturerId,
+    batchId,
+  });
+
+  const header = 'unit_id,unit_index,qr_filename\n';
+  const rows = units
+    .map((u) => `${u.unit_id},${u.unit_index},${u.unit_id}.png`)
+    .join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${batch.batch_code}-codes.csv"`
+  );
+  res.send(header + rows);
+}
+
+export async function sendManifestExport({
+  supabase,
+  manufacturerId,
+  batchId,
+  res,
+}) {
+  const { batch, units } = await loadOwnedBatchWithUnits({
+    supabase,
+    manufacturerId,
+    batchId,
+  });
+
+  const header = 'unit_id\n';
+  const rows = units.map((u) => u.unit_id).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${batch.batch_code}-print-manifest.csv"`
+  );
+  res.send(header + rows);
+}
+
+export async function streamQrZipExport({
+  supabase,
+  manufacturerId,
+  batchId,
+  res,
+}) {
+  const { batch, units } = await loadOwnedBatchWithUnits({
+    supabase,
+    manufacturerId,
+    batchId,
+  });
+
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="${batch.batch_code}-export.zip"`
+    `attachment; filename="${batch.batch_code}-qr-codes.zip"`
   );
 
-  const archive = new ZipArchive({ zlib: { level: 9 } });
+  // PNGs are already compressed image data — deflating them again at
+  // max effort (level 9) burns CPU time for negligible size savings.
+  // Level 0 = store only (no compression attempt), which is the
+  // correct choice for a ZIP full of already-compressed files.
+  const archive = new ZipArchive({ zlib: { level: 0 } });
   archive.pipe(res);
-
-  const csvHeader = 'unit_id,unit_index,qr_filename\n';
-  const csvRows = units
-    .map((u) => `${u.unit_id},${u.unit_index},${u.unit_id}.png`)
-    .join('\n');
-  archive.append(csvHeader + csvRows, {
-    name: `${batch.batch_code}-codes.csv`,
-  });
-
-  const manifestHeader = 'unit_id\n';
-  const manifestRows = units.map((u) => u.unit_id).join('\n');
-  archive.append(manifestHeader + manifestRows, {
-    name: `${batch.batch_code}-print-manifest.csv`,
-  });
 
   for (const unit of units) {
     const png = await generateQrPng({
       payload: unit.payload,
       signature: unit.signature,
     });
-    archive.append(png, { name: `qr/${unit.unit_id}.png` });
+    archive.append(png, { name: `${unit.unit_id}.png` });
   }
 
   await archive.finalize();
