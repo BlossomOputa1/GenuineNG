@@ -3,6 +3,7 @@ import Hero from '../components/Hero';
 import Icon from '../components/Icon';
 import ScanCameraView from '../components/ScanCameraView';
 import WhyGenuineNG from '../components/WhyGenuineNG';
+import CodeVerificationPanel from '../components/CodeVerificationPanel';
 
 export default function ScanPage({ navigate, onBeginScan }) {
   const heading = useRef(null);
@@ -89,6 +90,7 @@ export default function ScanPage({ navigate, onBeginScan }) {
               </div>
             </div>
           </details>
+          <CodeVerificationPanel />
         </aside>
       </div>
     </>

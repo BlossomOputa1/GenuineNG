@@ -65,3 +65,19 @@ export async function checkBackendHealth(signal) {
   if (!response.ok) throw new Error('Backend health check failed.');
   return response.json();
 }
+
+export async function verifyCode({ payload, signature }, signal) {
+  const response = await fetch(`${API_BASE_URL}/api/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload, signature }),
+    signal,
+  });
+
+  const body = await readJson(response);
+  if (!response.ok) {
+    throw new Error(toErrorMessage(response, body));
+  }
+
+  return body;
+}

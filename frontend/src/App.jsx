@@ -8,6 +8,7 @@ import ScanPage from "./pages/ScanPage";
 import SignedWorkspacePage from "./pages/SignedWorkspacePage";
 import ManufacturerPortalPage from "./pages/manufacturer/ManufacturerPortalPage";
 import { signOut } from "./services/authService";
+import { checkBackendHealth } from "./services/api";
 import {
   getDisplayName,
   supabase,
@@ -46,6 +47,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(supabaseConfigured);
   const [online, setOnline] = useState(navigator.onLine);
+  const [backendHealthy, setBackendHealthy] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [guestInitialPhoto, setGuestInitialPhoto] = useState(null);
@@ -95,6 +97,14 @@ export default function App() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkBackendHealth(controller.signal)
+      .then(() => setBackendHealthy(true))
+      .catch(() => setBackendHealthy(false));
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -439,6 +449,12 @@ export default function App() {
             OCR assets, live record checks and saved history may require a
             connection.
           </p>
+        </div>
+      )}
+      {online && backendHealthy === false && (
+        <div className="offline-strip" role="status">
+          <Icon name="info" size={17} />
+          <p>The GenuineNG service is temporarily unavailable. Live checks and saved history may be delayed.</p>
         </div>
       )}
       {route.pathname === "/" && (

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js';
+import { supabase } from './supabase.js';
 import { getApiErrorMessage } from './errorShape.js';
 
 const configuredBase = (

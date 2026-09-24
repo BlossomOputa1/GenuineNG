@@ -70,7 +70,9 @@ export async function sendPasswordReset(email) {
     throw new Error('Please enter your email address.');
   }
 
-  const apiUrl = import.meta.env.VITE_API_URL?.trim();
+  const apiUrl = (
+    import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
+  )?.trim();
 
   const emailjsServiceId =
     import.meta.env.VITE_EMAILJS_SERVICE_ID?.trim();

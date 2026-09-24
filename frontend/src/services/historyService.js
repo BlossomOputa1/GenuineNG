@@ -1,39 +1,71 @@
 import { supabase, supabaseConfigured } from './supabase';
 import { deriveCompletionState, verdictForChecks } from './resultModel';
 
+const configuredBase = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL)?.trim();
+const API_BASE_URL = configuredBase || (import.meta.env.DEV ? 'http://localhost:4000' : 'https://genuineng.onrender.com');
+
+const SESSION_ID = 'saved-checks';
+const METADATA_KEY = 'genuineng.scan-history.metadata';
+
 function requireSupabase() {
   if (!supabaseConfigured || !supabase) throw new Error('Supabase is not configured.');
   return supabase;
 }
 
-function scanRowToResult(scan) {
-  const checks = (scan.scan_checks || [])
-    .filter(check => check.check_key === 'registration' || check.check_key === 'expiry')
+async function authHeaders() {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.getSession();
+  if (error || !data?.session?.access_token) throw new Error('You need to be signed in to access scan history.');
+  return { Authorization: `Bearer ${data.session.access_token}` };
+}
+
+function getMetadata() {
+  try { return JSON.parse(localStorage.getItem(METADATA_KEY) || '{}'); } catch { return {}; }
+}
+
+function saveMetadata(metadata) {
+  localStorage.setItem(METADATA_KEY, JSON.stringify(metadata));
+}
+
+async function request(path, options = {}) {
+  const headers = await authHeaders();
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.error?.message || `Request failed (${response.status}).`);
+  return body;
+}
+
+function checksFromBackend(checks = []) {
+  return checks
+    .filter(check => (check.check_key || check.check_type) === 'registration' || (check.check_key || check.check_type) === 'expiry')
     .map(check => ({
-      key: check.check_key,
-      title: check.check_key === 'registration' ? 'Registration record' : 'Expiry date',
-      status: check.status,
+      key: check.check_key || check.check_type,
+      title: (check.check_key || check.check_type) === 'registration' ? 'Registration record' : 'Expiry date',
+      status: check.status || check.outcome,
       reason: check.reason,
-      source: check.source,
-      checkedAt: check.checked_at,
+      source: check.source || check.source_name,
+      checkedAt: check.checked_at || check.source_last_checked_at,
     }))
     .sort((a, b) => ['registration', 'expiry'].indexOf(a.key) - ['registration', 'expiry'].indexOf(b.key));
+}
 
+function scanToResult(scan) {
+  const checks = checksFromBackend(scan.checks);
   const completion = deriveCompletionState(checks);
   return {
     id: scan.id,
-    checkedAt: scan.checked_at,
+    checkedAt: scan.checked_at || scan.created_at,
     fields: {
       productName: scan.product_name || '',
-      manufacturer: scan.manufacturer || '',
+      manufacturer: scan.manufacturer_text || '',
       registrationNumber: scan.registration_number || '',
-      expiryDate: scan.expiry_printed || '',
+      expiryDate: scan.expiry_date || '',
     },
     submitted: {
       productName: scan.product_name || null,
-      manufacturer: scan.manufacturer || null,
+      manufacturer: scan.manufacturer_text || null,
       registrationNumber: scan.registration_number || null,
-      expiryDate: scan.expiry_normalized || null,
+      expiryDate: scan.expiry_date || null,
     },
     checks,
     completion,
@@ -41,147 +73,109 @@ function scanRowToResult(scan) {
     totalChecks: completion.total,
     hasWarning: completion.hasWarning,
     warnings: checks.filter(item => item.status === 'warning'),
-    verdict: verdictForChecks(checks),
+    verdict: scan.result_summary?.verdict || scan.result_summary || verdictForChecks(checks),
     stored: true,
   };
 }
 
-export async function listSessions(userId) {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from('scan_sessions')
-    .select('id,title,pinned,created_at,updated_at,scans(id)')
-    .eq('user_id', userId)
-    .order('pinned', { ascending: false })
-    .order('updated_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(item => ({
-    id: item.id,
-    title: item.title,
-    pinned: item.pinned,
-    createdAt: item.created_at,
-    updatedAt: item.updated_at,
-    scanCount: item.scans?.length || 0,
-  }));
+async function listScanRows() {
+  const body = await request('/api/scans?limit=50');
+  return body?.data || [];
 }
 
-export async function getSessionWithScans(userId, sessionId) {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from('scan_sessions')
-    .select(`
-      id,title,pinned,created_at,updated_at,
-      scans(
-        id,user_id,product_name,manufacturer,registration_number,
-        expiry_printed,expiry_normalized,recommendation,limitation,
-        checked_at,created_at,updated_at,
-        scan_checks(id,check_key,status,reason,source,checked_at)
-      )
-    `)
-    .eq('user_id', userId)
-    .eq('id', sessionId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
+async function getScan(id) {
+  return request(`/api/scans/${encodeURIComponent(id)}`);
+}
+
+export async function listSessions() {
+  const rows = await listScanRows();
+  const metadata = getMetadata()[SESSION_ID] || {};
+  return [{
+    id: SESSION_ID,
+    title: metadata.title || 'Saved product checks',
+    pinned: Boolean(metadata.pinned),
+    createdAt: rows.at(-1)?.created_at || null,
+    updatedAt: rows[0]?.created_at || null,
+    scanCount: rows.length,
+  }];
+}
+
+export async function getSessionWithScans(_userId, sessionId) {
+  if (sessionId !== SESSION_ID) return null;
+  const rows = await listScanRows();
+  const scans = await Promise.all(rows.map(row => getScan(row.id)));
+  const metadata = getMetadata()[SESSION_ID] || {};
   return {
-    id: data.id,
-    title: data.title,
-    pinned: data.pinned,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-    scans: (data.scans || [])
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-      .map(scanRowToResult),
+    id: SESSION_ID,
+    title: metadata.title || 'Saved product checks',
+    pinned: Boolean(metadata.pinned),
+    createdAt: rows.at(-1)?.created_at || null,
+    updatedAt: rows[0]?.created_at || null,
+    scans: scans.map(scanToResult).sort((a, b) => new Date(a.checkedAt) - new Date(b.checkedAt)),
   };
 }
 
-export async function createSession(userId, title = 'New product check') {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from('scan_sessions')
-    .insert({ user_id: userId, title })
-    .select('id,title,pinned,created_at,updated_at')
-    .single();
-  if (error) throw error;
-  return data;
+export async function createSession(_userId, title = 'Saved product checks') {
+  const metadata = getMetadata();
+  metadata[SESSION_ID] = { ...(metadata[SESSION_ID] || {}), title };
+  saveMetadata(metadata);
+  return { id: SESSION_ID, title, pinned: false };
 }
 
-async function writeChecks(client, userId, scanId, checks) {
-  if (!checks?.length) return;
-  const rows = checks
-    .filter(check => check.key === 'registration' || check.key === 'expiry')
-    .map(check => ({
-      scan_id: scanId,
-      user_id: userId,
-      check_key: check.key,
-      status: check.status,
-      reason: check.reason,
-      source: check.source || null,
-      coverage_note: null,
-      checked_at: check.checkedAt || new Date().toISOString(),
-    }));
-  const { error } = await client.from('scan_checks').upsert(rows, { onConflict: 'scan_id,check_key' });
-  if (error) throw error;
-}
-
-export async function saveScan(userId, sessionId, result, existingScanId = null) {
-  const client = requireSupabase();
-  const row = {
-    session_id: sessionId,
-    user_id: userId,
-    product_name: result.fields?.productName || null,
-    manufacturer: result.fields?.manufacturer || null,
+function toBackendScan(result) {
+  return {
+    matched_product_id: null,
+    manufacturer_text: result.fields?.manufacturer || null,
     registration_number: result.fields?.registrationNumber || null,
-    expiry_printed: result.fields?.expiryDate || null,
-    expiry_normalized: result.submitted?.expiryDate || null,
-    recommendation: result.verdict,
-    limitation: null,
-    checked_at: result.checkedAt || new Date().toISOString(),
+    batch_number: null,
+    expiry_date: result.submitted?.expiryDate || null,
+    ingredients_text: null,
+    result_summary: result.verdict ? { verdict: result.verdict } : null,
+    checks: (result.checks || []).map(check => ({
+      check_type: check.key,
+      outcome: check.status,
+      reason: check.reason || null,
+      source_name: check.source || null,
+    })),
   };
+}
 
-  let scan;
-  if (existingScanId) {
-    const { data, error } = await client
-      .from('scans')
-      .update(row)
-      .eq('id', existingScanId)
-      .eq('user_id', userId)
-      .select('*')
-      .single();
-    if (error) throw error;
-    scan = data;
-  } else {
-    const { data, error } = await client.from('scans').insert(row).select('*').single();
-    if (error) throw error;
-    scan = data;
+export async function saveScan(_userId, _sessionId, result, existingScanId = null) {
+  const created = await request('/api/scans', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(toBackendScan(result)),
+  });
+  if (existingScanId && existingScanId !== created?.id) {
+    await request(`/api/scans/${encodeURIComponent(existingScanId)}`, { method: 'DELETE' });
   }
-
-  await writeChecks(client, userId, scan.id, result.checks);
-  await client.from('scan_sessions').update({ updated_at: new Date().toISOString() }).eq('id', sessionId).eq('user_id', userId);
-  return scan.id;
+  return created?.id;
 }
 
-export async function renameSession(userId, sessionId, title) {
-  const client = requireSupabase();
-  const clean = title.trim().slice(0, 80) || 'Product check';
-  const { error } = await client.from('scan_sessions').update({ title: clean }).eq('id', sessionId).eq('user_id', userId);
-  if (error) throw error;
+export async function renameSession(_userId, sessionId, title) {
+  if (sessionId !== SESSION_ID) return;
+  const metadata = getMetadata();
+  metadata[SESSION_ID] = { ...(metadata[SESSION_ID] || {}), title: title.trim().slice(0, 80) || 'Saved product checks' };
+  saveMetadata(metadata);
 }
 
-export async function setSessionPinned(userId, sessionId, pinned) {
-  const client = requireSupabase();
-  const { error } = await client.from('scan_sessions').update({ pinned }).eq('id', sessionId).eq('user_id', userId);
-  if (error) throw error;
+export async function setSessionPinned(_userId, sessionId, pinned) {
+  if (sessionId !== SESSION_ID) return;
+  const metadata = getMetadata();
+  metadata[SESSION_ID] = { ...(metadata[SESSION_ID] || {}), pinned };
+  saveMetadata(metadata);
 }
 
-export async function deleteSession(userId, sessionId) {
-  const client = requireSupabase();
-  const { error } = await client.from('scan_sessions').delete().eq('id', sessionId).eq('user_id', userId);
-  if (error) throw error;
+export async function deleteSession(_userId, sessionId) {
+  if (sessionId !== SESSION_ID) return;
+  const rows = await listScanRows();
+  await Promise.all(rows.map(row => request(`/api/scans/${encodeURIComponent(row.id)}`, { method: 'DELETE' })));
 }
 
 export async function clearAllSessions(userId) {
-  const client = requireSupabase();
-  const { error } = await client.from('scan_sessions').delete().eq('user_id', userId);
-  if (error) throw error;
+  await deleteSession(userId, SESSION_ID);
+}
+
+export async function deleteScan(scanId) {
+  await request(`/api/scans/${encodeURIComponent(scanId)}`, { method: 'DELETE' });
 }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import Icon from "../../components/Icon";
 import ManufacturerSidebar from "../../components/ManufacturerSidebar";
-import { manufacturerProfile } from "../../data/manufacturerDemo";
 import ManufacturerBatchesPage from "./ManufacturerBatchesPage";
 import ManufacturerDashboardPage from "./ManufacturerDashboardPage";
 import ManufacturerProductsPage from "./ManufacturerProductsPage";
@@ -23,6 +22,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, onSignOut 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const title = pageTitle(routePath);
+  const profile = { companyName: "Approved manufacturer", initials: "AM" };
 
   let content = <ManufacturerDashboardPage navigate={navigate} profile={manufacturerProfile} />;
   if (routePath === "/manufacturer/products") content = <ManufacturerProductsPage />;
