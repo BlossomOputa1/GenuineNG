@@ -113,7 +113,7 @@ export default function ScanCameraView({
         setDragging(false);
         if (!busy && photos.length < 2 && event.dataTransfer.files[0]) onPhoto(event.dataTransfer.files[0]);
       }}>
-        {photos.length ? <div className="photo-grid">{photos.map((photo, index) => <figure className="photo-preview" key={photo.id}><img src={photo.url} alt={`Label photo ${index + 1} for text extraction`} /><figcaption><span>{index === 0 ? '01 / Main label' : '02 / Side or expiry panel'}</span><button type="button" className="icon-button" disabled={busy} onClick={() => onRemove(photo.id)} aria-label={`Remove photo ${index + 1}`}><Icon name="close" size={16} /></button></figcaption></figure>)}</div> : <div className="viewfinder">
+        {photos.length ? <div className="photo-grid">{photos.map((photo, index) => <figure className="photo-preview" key={photo.id}><img src={photo.url} alt={`Label photo ${index + 1} for text extraction`} width="640" height="480" loading="lazy" /><figcaption><span>{index === 0 ? '01 / Main label' : '02 / Side or expiry panel'}</span><button type="button" className="icon-button" disabled={busy} onClick={() => onRemove(photo.id)} aria-label={`Remove photo ${index + 1}`}><Icon name="close" size={16} /></button></figcaption></figure>)}</div> : <div className="viewfinder">
           <span className="corner top-left" /><span className="corner top-right" /><span className="corner bottom-left" /><span className="corner bottom-right" />
           <Icon name="scan" size={42} />
           <h2>{launcherMode ? 'Start with the front label.' : 'Start with a clear label.'}</h2>

@@ -28,7 +28,7 @@ function PhotoSlot({ slot, label, helper, photo, busy, onPick, onRemove, onSnap 
     <article className={`demo-photo-slot ${photo ? 'has-photo' : ''}`}>
       <input ref={uploadRef} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} tabIndex="-1" />
       {photo ? <>
-        <img src={photo.url} alt={`${label} preview`} />
+        <img src={photo.url} alt={`${label} preview`} width="320" height="240" loading="lazy" />
         <div className="demo-photo-meta"><div><strong>{label}</strong><span>Ready to read</span></div><button type="button" className="icon-button" onClick={() => onRemove(slot)} disabled={busy} aria-label={`Remove ${label.toLowerCase()}`}><Icon name="close" size={16} /></button></div>
       </> : <div className="demo-photo-empty">
         <span className="demo-photo-icon"><Icon name="camera" size={26} /></span><strong>{label}</strong><p>{helper}</p>
@@ -226,13 +226,13 @@ export default function LabelCheckFlow({ initialPhotoFile = null, previousScans 
       {error && <div className="inline-notice demo-image-error" role="alert"><Icon name="info" /><div><strong>We couldn’t use that image.</strong><p>{error}</p></div></div>}
     </div>}
 
-    {stage === 'reading' && <div className="demo-stage-card"><div className="demo-result-images compact"><img src={photos.front?.url} alt="Front product preview" /><img src={photos.back?.url} alt="Back product preview" /></div><Processing title="Reading the label details…" /></div>}
+    {stage === 'reading' && <div className="demo-stage-card"><div className="demo-result-images compact"><img src={photos.front?.url} alt="Front product preview" width="320" height="240" loading="lazy" /><img src={photos.back?.url} alt="Back product preview" width="320" height="240" loading="lazy" /></div><Processing title="Reading the label details…" /></div>}
 
     {reviewOpen && photos.front?.url && photos.back?.url && <div className="demo-stage-card demo-review-backdrop-card">
-      <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" /><img src={photos.back.url} alt="Back product preview" /></div>
+      <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" width="320" height="240" loading="lazy" /><img src={photos.back.url} alt="Back product preview" width="320" height="240" loading="lazy" /></div>
     </div>}
 
-    {stage === 'checking' && <div className="demo-stage-card">{photos.front?.url && photos.back?.url && <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" /><img src={photos.back.url} alt="Back product preview" /></div>}<Processing title="Checking the registration and expiry…" /></div>}
+    {stage === 'checking' && <div className="demo-stage-card">{photos.front?.url && photos.back?.url && <div className="demo-result-images compact"><img src={photos.front.url} alt="Front product preview" width="320" height="240" loading="lazy" /><img src={photos.back.url} alt="Back product preview" width="320" height="240" loading="lazy" /></div>}<Processing title="Checking the registration and expiry…" /></div>}
 
     {stage === 'result' && result && <ResultView result={result} photos={photos} onNewScan={newScan} onEdit={editCurrentDetails} />}
 

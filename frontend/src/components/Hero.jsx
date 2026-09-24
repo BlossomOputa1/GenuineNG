@@ -118,10 +118,10 @@ export default function Hero({ onStart, navigate, headingRef }) {
       <div className="hero-gallery-shell">
         <div className="hero-gallery-frame">
           <div className="hero-gallery-grid">
-            <img src="/images/hero1.webp" alt="" />
-            <img src="/images/hero2.webp" alt="" />
-            <img src="/images/hero3.webp" alt="" />
-            <img src="/images/hero4.webp" alt="" />
+            <img src="/images/hero1.webp" alt="" width="960" height="640" fetchPriority="high" />
+            <img src="/images/hero2.webp" alt="" width="960" height="640" loading="lazy" />
+            <img src="/images/hero3.webp" alt="" width="960" height="640" loading="lazy" />
+            <img src="/images/hero4.webp" alt="" width="960" height="640" loading="lazy" />
           </div>
         </div>
       </div>

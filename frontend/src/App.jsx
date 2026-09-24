@@ -1,12 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./components/Icon";
-import GuestScanPage from "./pages/GuestScanPage";
-import LoginPage from "./pages/LoginPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import ScanPage from "./pages/ScanPage";
-import SignedWorkspacePage from "./pages/SignedWorkspacePage";
-import ManufacturerPortalPage from "./pages/manufacturer/ManufacturerPortalPage";
 import { signOut } from "./services/authService";
 import { checkBackendHealth } from "./services/api";
 import {
@@ -28,6 +21,18 @@ const headerNavItems = [
 const productAlertText =
   "Counterfeit products can copy real-looking label details. GenuineNG makes printed information easier to read, review and check while being clear about what a label check can and cannot prove.";
 
+const GuestScanPage = lazy(() => import("./pages/GuestScanPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const PlaceholderPage = lazy(() => import("./pages/PlaceholderPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const ScanPage = lazy(() => import("./pages/ScanPage"));
+const SignedWorkspacePage = lazy(() => import("./pages/SignedWorkspacePage"));
+const ManufacturerPortalPage = lazy(() => import("./pages/manufacturer/ManufacturerPortalPage"));
+
+function RouteFallback() {
+  return <div className="app-shell"><main className="site-main workspace-login-fallback"><div className="empty-state"><p>Loading...</p></div></main></div>;
+}
+
 function ProductAlertMessage() {
   return (
     <>
@@ -43,6 +48,10 @@ function ProductAlertMessage() {
 }
 
 export default function App() {
+  return <Suspense fallback={<RouteFallback />}><AppContent /></Suspense>;
+}
+
+function AppContent() {
   const [route, setRoute] = useState(readLocation);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(supabaseConfigured);

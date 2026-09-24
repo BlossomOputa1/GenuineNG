@@ -96,13 +96,14 @@ function scanToResult(scan) {
   };
 }
 
-async function listScanRows() {
-  const body = await request('/api/scans?limit=50');
+async function listScanRows(sessionId = null) {
+  const query = new URLSearchParams({ limit: '50' });
+  if (sessionId) {
+    query.set('session_id', sessionId);
+    query.set('include', 'checks');
+  }
+  const body = await request(`/api/scans?${query.toString()}`);
   return body?.data || [];
-}
-
-async function getScan(id) {
-  return request(`/api/scans/${encodeURIComponent(id)}`);
 }
 
 export async function listSessions(userId) {
@@ -127,15 +128,14 @@ export async function listSessions(userId) {
 export async function getSessionWithScans(userId, sessionId) {
   const session = await sessionQuery(userId, sessionId);
   if (!session) return null;
-  const rows = (await listScanRows()).filter((row) => row.session_id === sessionId);
-  const scans = await Promise.all(rows.map(row => getScan(row.id)));
+  const rows = await listScanRows(sessionId);
   return {
     id: session.id,
     title: session.title,
     pinned: session.pinned,
     createdAt: session.created_at,
     updatedAt: session.updated_at,
-    scans: scans.map(scanToResult).sort((a, b) => new Date(a.checkedAt) - new Date(b.checkedAt)),
+    scans: rows.map(scanToResult).sort((a, b) => new Date(a.checkedAt) - new Date(b.checkedAt)),
   };
 }
 

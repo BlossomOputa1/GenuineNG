@@ -61,7 +61,7 @@ export default function AuthMascots({ focusTarget = '', isTyping = false, privac
       aria-hidden="true"
     >
       <div className="auth-mascot-brand-mark">
-        <img src="/icons/favicon.svg" alt="" />
+        <img src="/icons/favicon.svg" alt="" width="44" height="44" loading="lazy" />
       </div>
 
       <div className="auth-mascot-ground" />

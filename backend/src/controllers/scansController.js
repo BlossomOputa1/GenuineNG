@@ -2,6 +2,8 @@ import { validateScanInput } from '../validators/scanInputValidator.js';
 
 const PAGE_SIZE_DEFAULT = 20;
 const PAGE_SIZE_MAX = 50;
+const SCAN_COLUMNS = 'id, session_id, user_id, product_name, manufacturer, manufacturer_text, registration_number, batch_number, expiry_printed, expiry_normalized, ingredients, verification_score, score_band, recommendation, limitation, dataset_meta, checked_at, created_at, updated_at';
+const CHECK_COLUMNS = 'id, scan_id, user_id, check_key, status, reason, source, checked_at';
 
 function requireRequestContext(req, res) {
   if (!req.user?.id || !req.supabase) {
@@ -27,11 +29,13 @@ export async function listScans(req, res) {
       PAGE_SIZE_MAX
     );
     const cursor = typeof req.query?.cursor === 'string' ? req.query.cursor : null;
+    const sessionId = typeof req.query?.session_id === 'string' ? req.query.session_id.trim() : null;
+    const includeChecks = req.query?.include === 'checks';
 
     let query = req.supabase
       .from('scans')
       .select(
-        'id, session_id, user_id, product_name, manufacturer, manufacturer_text, registration_number, batch_number, expiry_printed, expiry_normalized, ingredients, verification_score, score_band, recommendation, limitation, dataset_meta, checked_at, created_at, updated_at'
+        includeChecks ? `${SCAN_COLUMNS}, checks:scan_checks(${CHECK_COLUMNS})` : SCAN_COLUMNS
       )
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
@@ -39,6 +43,7 @@ export async function listScans(req, res) {
       .limit(limit);
 
     if (cursor) query = query.lt('created_at', cursor);
+    if (sessionId) query = query.eq('session_id', sessionId);
 
     const { data = [], error } = await query;
     if (error) {
@@ -72,7 +77,7 @@ export async function getScan(req, res) {
 
     const { data: scan, error: scanError } = await req.supabase
       .from('scans')
-      .select('*')
+      .select(SCAN_COLUMNS)
       .eq('user_id', req.user.id)
       .eq('id', id)
       .maybeSingle();
@@ -91,7 +96,7 @@ export async function getScan(req, res) {
 
     const { data: checks = [], error: checksError } = await req.supabase
       .from('scan_checks')
-      .select('*')
+      .select(CHECK_COLUMNS)
       .eq('scan_id', id);
 
     if (checksError) {
@@ -156,7 +161,7 @@ export async function createScan(req, res) {
     const { data: scan, error } = await req.supabase
       .from('scans')
       .insert(scanRow)
-      .select('*')
+      .select(SCAN_COLUMNS)
       .single();
 
     if (error || !scan) {
@@ -211,7 +216,7 @@ export async function deleteScan(req, res) {
       .delete()
       .eq('user_id', req.user.id)
       .eq('id', id)
-      .select()
+      .select('id')
       .maybeSingle();
 
     if (error) {

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { rateLimit } from 'express-rate-limit';
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
@@ -75,6 +76,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use(express.json({ limit: '32kb' }));
+app.use(compression());
 
 app.use((req, res, next) => {
   console.log(

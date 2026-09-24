@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import Icon from "../../components/Icon";
 import ManufacturerSidebar from "../../components/ManufacturerSidebar";
 import { supabase } from "../../services/supabase";
-import ManufacturerBatchesPage from "./ManufacturerBatchesPage";
-import ManufacturerDashboardPage from "./ManufacturerDashboardPage";
-import ManufacturerProductsPage from "./ManufacturerProductsPage";
-import ManufacturerSimplePage from "./ManufacturerSimplePage";
-import GenerateCodesPage from "./GenerateCodesPage";
-import ScanActivityPage from "./ScanActivityPage";
+const ManufacturerBatchesPage = lazy(() => import("./ManufacturerBatchesPage"));
+const ManufacturerDashboardPage = lazy(() => import("./ManufacturerDashboardPage"));
+const ManufacturerProductsPage = lazy(() => import("./ManufacturerProductsPage"));
+const ManufacturerSimplePage = lazy(() => import("./ManufacturerSimplePage"));
+const GenerateCodesPage = lazy(() => import("./GenerateCodesPage"));
+const ScanActivityPage = lazy(() => import("./ScanActivityPage"));
 
 function pageTitle(routePath) {
   if (routePath === "/manufacturer/products") return "Products";
@@ -89,7 +89,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, session, o
             <button type="button" className="manufacturer-topbar-profile" onClick={() => navigate("/manufacturer/settings")}><span>{profile?.companyName || "Approved manufacturer"}</span><b>{profile?.initials || "AM"}</b></button>
           </div>
         </header>
-        <div className="manufacturer-content">{content}</div>
+        <div className="manufacturer-content"><Suspense fallback={<div className="empty-state"><p>Loading portal view...</p></div>}>{content}</Suspense></div>
         <footer className="manufacturer-footer"><span>GenuineNG manufacturer portal</span><span><Icon name="shield" size={14} /> Layer 2 issuing workspace</span></footer>
       </main>
     </div>

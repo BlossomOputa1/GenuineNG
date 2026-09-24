@@ -85,8 +85,8 @@ export default function ResultView({
 
       {photos?.front?.url && photos?.back?.url && (
         <div className="demo-result-images compact result-images">
-          <figure><img src={photos.front.url} alt="Front product preview" /><figcaption>Front</figcaption></figure>
-          <figure><img src={photos.back.url} alt="Back product preview" /><figcaption>Back</figcaption></figure>
+          <figure><img src={photos.front.url} alt="Front product preview" width="640" height="480" loading="lazy" /><figcaption>Front</figcaption></figure>
+          <figure><img src={photos.back.url} alt="Back product preview" width="640" height="480" loading="lazy" /><figcaption>Back</figcaption></figure>
         </div>
       )}
 
