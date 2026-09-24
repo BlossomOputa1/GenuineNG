@@ -130,10 +130,10 @@ export default function ManufacturerSidebar({
           </button>
 
           <div className="manufacturer-profile-card">
-            <div className="manufacturer-avatar">{profile.initials}</div>
+            <div className="manufacturer-avatar">{profile?.initials || "AM"}</div>
             <div>
-              <strong>{profile.companyName}</strong>
-              <span><i /> {profile.status}</span>
+              <strong>{profile?.companyName || "Approved manufacturer"}</strong>
+              <span><i /> {profile?.status || "Approved manufacturer"}</span>
             </div>
           </div>
 

@@ -22,9 +22,9 @@ export default function ManufacturerPortalPage({ routePath, navigate, onSignOut 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const title = pageTitle(routePath);
-  const profile = { companyName: "Approved manufacturer", initials: "AM" };
+  const profile = { companyName: "Approved manufacturer", initials: "AM", status: "Approved manufacturer" };
 
-  let content = <ManufacturerDashboardPage navigate={navigate} profile={manufacturerProfile} />;
+  let content = <ManufacturerDashboardPage navigate={navigate} profile={profile} />;
   if (routePath === "/manufacturer/products") content = <ManufacturerProductsPage />;
   else if (routePath === "/manufacturer/batches") content = <ManufacturerBatchesPage navigate={navigate} />;
   else if (routePath === "/manufacturer/generate-codes") content = <GenerateCodesPage />;
@@ -38,7 +38,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, onSignOut 
       <ManufacturerSidebar
         routePath={routePath}
         navigate={navigate}
-        profile={manufacturerProfile}
+        profile={profile}
         onSignOut={onSignOut}
         collapsed={collapsed}
         setCollapsed={setCollapsed}
@@ -50,7 +50,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, onSignOut 
           <div><span>GENUINENG LAYER 2</span><strong>{title}</strong></div>
           <div className="manufacturer-topbar-actions">
             <span className="manufacturer-approved-badge"><i /> Approved</span>
-            <button type="button" className="manufacturer-topbar-profile" onClick={() => navigate("/manufacturer/settings")}><span>{manufacturerProfile.companyName}</span><b>{manufacturerProfile.initials}</b></button>
+            <button type="button" className="manufacturer-topbar-profile" onClick={() => navigate("/manufacturer/settings")}><span>{profile?.companyName || "Approved manufacturer"}</span><b>{profile?.initials || "AM"}</b></button>
           </div>
         </header>
         <div className="manufacturer-content">{content}</div>
