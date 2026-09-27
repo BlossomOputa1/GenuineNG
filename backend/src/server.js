@@ -3,14 +3,21 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { rateLimit } from 'express-rate-limit';
+
 import labelChecksRouter from './routes/labelChecks.js';
 import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
 import manufacturerRouter from './routes/manufacturer.js';
 import verifyCodeRouter from './routes/verifyCode.js';
+import passwordResetRouter from './routes/passwordReset.js';
+import bmoniRouter from './routes/bmoni.js'; // Layer 2 BMoni routes (VBA, offramp, webhooks)
+
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import passwordResetRouter from './routes/passwordReset.js';
+
+// BMoni sandbox default
+process.env.BMONI_BASE_URL =
+  process.env.BMONI_BASE_URL || 'https://embedded-dev.bmoni.com';
 
 const requiredEnvVars = [
   'SUPABASE_URL',
@@ -19,11 +26,25 @@ const requiredEnvVars = [
   'GENUINENG_ED25519_PRIVATE_KEY',
   'GENUINENG_ED25519_PUBLIC_KEY',
   'GENUINENG_KEY_VERSION',
+  // BMoni Layer 2 Configuration
+  'BMONI_API_KEY',
+  'BMONI_BASE_URL',
+  'BMONI_WEBHOOK_SECRET',
+  'BMONI_SECP256K1_PRIVATE_KEY',
 ];
+
 const missing = requiredEnvVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error(
     `Startup aborted. Missing required environment variables: ${missing.join(', ')}. Configure these in the Render service environment.`
+  );
+  process.exit(1);
+}
+
+const secpKey = process.env.BMONI_SECP256K1_PRIVATE_KEY;
+if (secpKey && !/^0x[0-9a-fA-F]{64}$/.test(secpKey)) {
+  console.error(
+    'Startup aborted. BMONI_SECP256K1_PRIVATE_KEY must be a 32-byte hex string starting with 0x (66 characters total).'
   );
   process.exit(1);
 }
@@ -75,7 +96,18 @@ const apiLimiter = rateLimit({
   },
 });
 
-app.use(express.json({ limit: '32kb' }));
+// Capture raw body specifically for BMoni webhook verification
+app.use(
+  express.json({
+    limit: '32kb',
+    verify: (req, res, buf) => {
+      if (req.originalUrl.startsWith('/api/bmoni/webhook')) {
+        req.rawBody = buf;
+      }
+    },
+  })
+);
+
 app.use(compression());
 
 app.use((req, res, next) => {
@@ -88,17 +120,22 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'genuineng-layer1',
+    service: 'genuineng-backend',
+    environment: process.env.NODE_ENV || 'development',
     time: new Date().toISOString(),
   });
 });
 
+// Layer 1 routes
 app.use('/api', apiLimiter, extractLabelRouter);
 app.use('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
 app.use('/api/manufacturer', apiLimiter, manufacturerRouter);
 app.use('/api/password-reset', apiLimiter, passwordResetRouter);
 app.use('/api/verify-code', apiLimiter, verifyCodeRouter);
+
+// Layer 2 BMoni routes (Webhook endpoint inside bmoniRouter should not be rate-limited by apiLimiter)
+app.use('/api/bmoni', bmoniRouter);
 
 app.use('/api', (req, res) => {
   return res.status(404).json({
@@ -107,8 +144,7 @@ app.use('/api', (req, res) => {
   });
 });
 
-// Catches multer's file-size/file-type errors before the general error
-// handler, since multer throws plain Errors rather than using statusCode.
+// Multer error boundary
 app.use((err, req, res, next) => {
   if (err.message?.includes('File too large')) {
     return res.status(400).json({
@@ -127,5 +163,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () =>
-  console.log(`GenuineNG Layer 1 backend running on port ${PORT}`)
+  console.log(`GenuineNG Backend (Layer 1 + Layer 2 BMoni) running on port ${PORT}`)
 );

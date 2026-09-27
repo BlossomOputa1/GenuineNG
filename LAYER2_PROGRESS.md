@@ -24,6 +24,12 @@ Full flow diagrams, wording examples, and the original file structure plan live 
 
 | `GET /api/manufacturer/products` | Lists a manufacturer's products with aggregate stats (batch count, codes issued, scans) | ✅ Verified against real data |
 | `GET /api/manufacturer/batches` | Lists a manufacturer's batches with codes-generated count and status | ✅ Verified against real data (matches `scan-activity` totals) |
+| `011_create_invoices.sql` | `invoices` table with reference unique, RLS, status ('pending', 'settled', 'cancelled') | ✅ Migration created, verified against Supabase |
+| `bmoniClient.js` / `bmoniSigner.js` | Axios instance + secp256k1 proposal digest signing (`signProposalDigest`) | ✅ Verified signature format and signer address |
+| `POST /api/manufacturer/vba` | Requests dynamic Nigerian VBA from BMoni, creates pending invoice | ✅ Authenticated & profile-linked |
+| 402 Gate on `generate-codes` | Enforces invoice settlement before Ed25519 batch code generation | ✅ Verified: returns 402 when pending/missing, unlocks to 201 when settled |
+| `POST /api/bmoni/webhook` | Verifies HMAC-SHA256 over raw buffer (`req.rawBody`), settles invoice | ✅ Verified with timing-safe HMAC check and live test suite |
+| `test-live-bmoni.js` | Full end-to-end integration test (health -> 402 gate -> signed webhook -> 201 code gen) | ✅ All 4 steps passing end-to-end |
 
 ## Frontend UI mockup review (2026-09-23)
 

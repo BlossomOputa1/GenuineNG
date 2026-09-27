@@ -135,6 +135,33 @@ export async function generateCodesController(req, res, next) {
     // NOT pass req.supabase — that would be the wrong client for a
     // bulk insert that already passed authorization in
     // manufacturerAuthMiddleware.
+    const { data: invoice, error: invoiceError } = await req.supabase
+      .from('invoices')
+      .select('id, status, amount, currency, settled_at')
+      .eq('batch_id', batchId)
+      .eq('manufacturer_id', req.manufacturer.id)
+      .order('created_at', { ascending: false})
+      .limit(1)
+      .maybeSingle();
+    if (invoiceError) {
+      return res.status(500).json({
+        error: {
+          code: 'PAYMENT_CHECK_FAILED',
+          message: 'Failed to verify payment status for this batch',
+        },
+      });
+    }
+    // enforce 402 payment required if no invoice or invoice is still pending
+    if (!invoice || invoice.status !== 'settled'){
+      return res.status(402).json({
+        error: {
+          code: 'PAYMENT_REQUIRED',
+          message: 'Payment has not been settled for this batch.',
+          invoiceStatus: invoice ? invoice.status : 'unbilled',
+          batchId,
+        },
+      });
+    }
     const result = await generateCodesForBatch({
       manufacturerId: req.manufacturer.id,
       batchId,
