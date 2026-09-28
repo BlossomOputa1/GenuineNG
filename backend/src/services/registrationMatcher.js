@@ -24,30 +24,36 @@ export async function checkRegistration(
   if (!record) {
     return {
       status: 'unverified',
-      reason: 'No matching registration record found.',
+      reason: 'No matching registration record found. Unverified does not mean fake.',
       source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
     };
   }
 
-  if (!productName || productName.trim() === '') {
+  const hasProductName = Boolean(productName?.trim());
+  const hasManufacturer = Boolean(manufacturer?.trim());
+
+  if (!hasProductName && !hasManufacturer) {
     return {
       status: 'match',
-      reason: `Registration number is on record for ${record.manufacturer}. Product name wasn't provided, so name/manufacturer identity wasn't cross-checked.`,
+      reason: `Registration number is on record for “${record.productName}” by ${record.manufacturer}. No product identity fields were provided to cross-check.`,
       source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
     };
   }
 
   const identity = await compareIdentity(
-    { productName, manufacturer },
+    {
+      productName: hasProductName ? productName.trim() : '',
+      manufacturer: hasManufacturer ? manufacturer.trim() : '',
+    },
     { productName: record.productName, manufacturer: record.manufacturer }
   );
 
   if (identity.matches === false) {
     return {
       status: 'warning',
-      reason: `This registration number is on record, but for a different product: "${record.productName}" (${record.manufacturer}). ${identity.reason}`,
+      reason: `This registration number is on record for “${record.productName}” by ${record.manufacturer}, but the provided label details do not match that record. ${identity.reason}`.trim(),
       source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
     };
@@ -56,15 +62,19 @@ export async function checkRegistration(
   if (identity.matches === null) {
     return {
       status: 'match',
-      reason: `Registration number matches. Product/manufacturer identity check unavailable: ${identity.reason}`,
+      reason: `Registration number is on record for “${record.productName}” by ${record.manufacturer}. Identity cross-check was unavailable: ${identity.reason}`,
       source: `nafdac-greenbook-export (as of ${generatedAt})`,
       checkedAt: now.toISOString(),
     };
   }
 
+  const compared = [hasProductName ? 'product name' : null, hasManufacturer ? 'manufacturer' : null]
+    .filter(Boolean)
+    .join(' and ');
+
   return {
     status: 'match',
-    reason: `Registered to ${record.manufacturer} as "${record.productName}".`,
+    reason: `Registered to ${record.manufacturer} as “${record.productName}”. The provided ${compared} matched the registration record.`,
     source: `nafdac-greenbook-export (as of ${generatedAt})`,
     checkedAt: now.toISOString(),
   };

@@ -1,3 +1,4 @@
+import { supabase } from './supabase.js';
 import { buildVerificationPayload } from './labelPayload.js';
 import { getApiErrorMessage } from './errorShape.js';
 
@@ -67,9 +68,16 @@ export async function checkBackendHealth(signal) {
 }
 
 export async function verifyCode({ payload, signature }, signal) {
+  let authorization = {};
+  try {
+    const { data } = await supabase?.auth?.getSession?.() || {};
+    if (data?.session?.access_token) authorization = { Authorization: `Bearer ${data.session.access_token}` };
+  } catch {
+    // Public QR checks do not require authentication.
+  }
   const response = await fetch(`${API_BASE_URL}/api/verify-code`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authorization },
     body: JSON.stringify({ payload, signature }),
     signal,
   });

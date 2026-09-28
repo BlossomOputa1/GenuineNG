@@ -4,11 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "data:validate": "node data/scripts/validate_dataset.js",
+    "data:validate": "node scripts/validate-reference-data.js",
     "test:backend": "npm --prefix backend test",
     "test:frontend-logic": "npm --prefix frontend run test:logic"
-  },
-  "dependencies": {
-    "express-rate-limit": "^8.7.0"
   }
 }

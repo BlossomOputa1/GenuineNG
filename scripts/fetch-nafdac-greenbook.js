@@ -10,10 +10,8 @@ const OUTPUT_FILE = path.join(__dirname, '..', 'nafdac_greenbook_export.json');
 function buildColumns() {
   const columns = [
     ['product_name', true],
-    ['ingredient.ingredient_name', true],
     ['product_category.name', false],
     ['product_category_id', true],
-    ['ingredient.synonym', true],
     ['NAFDAC', true],
     ['form.name', true],
     ['route.name', true],
@@ -42,7 +40,6 @@ async function fetchPage(cookies, start, draw) {
   params.set('length', String(PAGE_SIZE));
   params.set('search[value]', '');
   params.set('search[regex]', 'false');
-  params.set('search_ingredient', '');
   params.set('draw', String(draw));
   params.set('_', String(Date.now()));
 

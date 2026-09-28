@@ -89,8 +89,8 @@ export default function ResetPasswordPage({ navigate }) {
         <span className="eyebrow">RESET PASSWORD</span>
         <h2>{done ? "Password updated." : "Choose a new password."}</h2>
         {done ? (
-          <button className="button primary" onClick={() => navigate("/app")}>
-            Open workspace <Icon name="arrow" />
+          <button className="button primary" onClick={() => navigate("/login")}>
+            Return to sign in <Icon name="arrow" />
           </button>
         ) : checkingRecovery ? (
           <p>Verifying your password reset link...</p>

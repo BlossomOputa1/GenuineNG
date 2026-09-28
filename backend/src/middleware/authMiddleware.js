@@ -50,7 +50,7 @@ export async function authMiddleware(req, res, next) {
   }
 
   // Attach only the authenticated identity — never the raw token.
-  req.user = { id: data.user.id };
+  req.user = { id: data.user.id, email: data.user.email || '' };
 
   // Scoped client carrying the user's JWT, so RLS stays part of the
   // normal authorization path instead of relying on the secret key.

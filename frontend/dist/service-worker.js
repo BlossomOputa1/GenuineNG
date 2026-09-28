@@ -1,10 +1,8 @@
-const CACHE_NAME = 'genuineng-shell-v1';
+const CACHE_NAME = 'genuineng-shell-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.json', '/icons/favicon.svg'];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
@@ -29,8 +27,11 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       (async () => {
         try {
-          return await fetch(request);
-        } catch (error) {
+          const response = await fetch(request);
+          const cache = await caches.open(CACHE_NAME);
+          cache.put('/index.html', response.clone()).catch(() => {});
+          return response;
+        } catch {
           const cache = await caches.open(CACHE_NAME);
           return (await cache.match('/index.html')) || (await cache.match('/')) || Response.error();
         }
@@ -46,9 +47,11 @@ self.addEventListener('fetch', event => {
       if (cached) return cached;
 
       try {
-        return await fetch(request);
-      } catch (error) {
-        return (await cache.match(request)) || (await cache.match('/index.html')) || (await cache.match('/')) || Response.error();
+        const response = await fetch(request);
+        if (response.ok) cache.put(request, response.clone()).catch(() => {});
+        return response;
+      } catch {
+        return (await cache.match(request)) || Response.error();
       }
     })()
   );

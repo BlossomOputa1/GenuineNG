@@ -1,7 +1,3 @@
-// this is the labelextractor file 
-import { GoogleGenAI } from '@google/genai';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const GEMINI_MODEL = 'gemini-3.6-flash';
 const GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_MAX_RETRIES = 2;
@@ -88,7 +84,7 @@ async function requestGemini(imageItem) {
       ],
     },
   ];
-  const config = {
+  const generationConfig = {
     responseMimeType: 'application/json',
     responseSchema: {
       type: 'OBJECT',
@@ -98,80 +94,82 @@ async function requestGemini(imageItem) {
         registrationNumber: { type: 'STRING', nullable: true },
         expiryDate: { type: 'STRING', nullable: true },
       },
-      required: [
-        'productName',
-        'manufacturer',
-        'registrationNumber',
-        'expiryDate',
-      ],
+      required: ['productName', 'manufacturer', 'registrationNumber', 'expiryDate'],
     },
   };
 
-  const isCapacityError = (error) => {
-    const status = error?.status ?? error?.statusCode;
-    const message = String(error?.message || '').toLowerCase();
-    return status === 503 || message.includes('experiencing high demand');
-  };
+  const apiKey = process.env.GEMINI_API_KEY;
+  const retryableStatus = (status) => status === 429 || status === 503 || (status >= 500 && status < 600);
 
   async function generateWithRetries(model) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45_000);
       try {
-        return await ai.models.generateContent({
-          model,
-          contents,
-          config,
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({ contents, generationConfig }),
+          signal: controller.signal,
         });
-      } catch (error) {
-        const canRetry = isCapacityError(error) && attempt < GEMINI_MAX_RETRIES;
 
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          const error = new Error(`Gemini request failed (${response.status}).${errorText ? ` ${errorText.slice(0, 240)}` : ''}`);
+          error.status = response.status;
+          throw error;
+        }
+        return await response.json();
+      } catch (error) {
+        const status = error?.status;
+        const timedOut = error?.name === 'AbortError' || error?.name === 'TimeoutError';
+        const canRetry = (timedOut || retryableStatus(status)) && attempt < GEMINI_MAX_RETRIES;
         console.error('Gemini image extraction request failed:', {
           model,
           attempt: attempt + 1,
-          status: error?.status ?? error?.statusCode,
+          status,
           message: error?.message,
           retrying: canRetry,
           originalName: imageItem.originalName,
         });
-
         if (!canRetry) throw error;
-        await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAY_MS));
+        await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAY_MS * (attempt + 1)));
+      } finally {
+        clearTimeout(timeout);
       }
     }
+    throw new Error('Gemini extraction retries were exhausted.');
   }
 
-  async function parseResponse(response, model) {
-    const text = response?.text?.trim();
+  function parseResponse(response, model) {
+    const text = response?.candidates?.[0]?.content?.parts?.map((part) => part?.text || '').join('').trim();
     if (!text) {
-      console.error('Gemini returned no extraction text:', {
-        model,
-        originalName: imageItem.originalName,
-      });
+      console.error('Gemini returned no extraction text:', { model, originalName: imageItem.originalName });
       throw new Error('Gemini returned no extraction text.');
     }
-
-    console.log('Gemini raw text output:', text);
-    const parsed = JSON.parse(text);
-    return normalizeExtractedFields(parsed);
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    return normalizeExtractedFields(JSON.parse(cleaned));
   }
 
   try {
-    const response = await generateWithRetries(GEMINI_MODEL);
-    return await parseResponse(response, GEMINI_MODEL);
+    return parseResponse(await generateWithRetries(GEMINI_MODEL), GEMINI_MODEL);
   } catch (primaryError) {
     console.error('Primary Gemini model failed; trying fallback model:', {
       model: GEMINI_MODEL,
       message: primaryError?.message,
       originalName: imageItem.originalName,
     });
-
     try {
-      const response = await generateWithRetries(GEMINI_FALLBACK_MODEL);
-      return await parseResponse(response, GEMINI_FALLBACK_MODEL);
-    } catch (err) {
+      return parseResponse(await generateWithRetries(GEMINI_FALLBACK_MODEL), GEMINI_FALLBACK_MODEL);
+    } catch (error) {
       console.error('Gemini image extraction failed; skipping image:', {
         model: GEMINI_FALLBACK_MODEL,
-        name: err?.name,
-        message: err?.message,
+        name: error?.name,
+        message: error?.message,
         originalName: imageItem.originalName,
       });
       return null;

@@ -6,7 +6,6 @@ test('backend check object is adapted to registration then expiry', () => {
   const checks = checksObjectToArray({
     expiry: { status: 'match', reason: 'ok' },
     registration: { status: 'unverified', reason: 'unknown' },
-    ingredients: { status: 'match', reason: 'legacy check should be ignored' },
   });
   assert.deepEqual(checks.map(item => item.key), ['registration', 'expiry']);
 });

@@ -2,19 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateLabelInput } from './labelInputValidator.js';
 
-test('product name, manufacturer and registration number are required', () => {
-  const result = validateLabelInput({ expiryDate: null });
+test('at least one current Layer 1 detail is required', () => {
+  const result = validateLabelInput({ productName: '', manufacturer: '', registrationNumber: '', expiryDate: null });
   assert.equal(result.valid, false);
-  assert.ok(result.errors.includes('productName is required.'));
-  assert.ok(result.errors.includes('manufacturer is required.'));
-  assert.ok(result.errors.includes('registrationNumber is required.'));
+  assert.ok(result.errors.includes('Provide at least one label detail to check.'));
 });
 
-test('expiry may be omitted', () => {
-  const result = validateLabelInput({
-    productName: 'Demo Product',
-    manufacturer: 'Demo Ltd',
-    registrationNumber: 'A1-1234',
-  });
+test('registration-only input is valid', () => {
+  const result = validateLabelInput({ registrationNumber: 'A1-1234' });
   assert.equal(result.valid, true);
+});
+
+test('expiry-only input is valid when it is a real ISO date', () => {
+  const result = validateLabelInput({ expiryDate: '2028-12-31' });
+  assert.equal(result.valid, true);
+});
+
+test('invalid calendar dates are rejected', () => {
+  const result = validateLabelInput({ expiryDate: '2027-02-31' });
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes('expiryDate must be a real calendar date.'));
 });

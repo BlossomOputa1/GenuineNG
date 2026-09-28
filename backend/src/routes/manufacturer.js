@@ -3,57 +3,25 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import { manufacturerAuthMiddleware } from '../middleware/manufacturerAuthMiddleware.js';
 import {
   registerProduct,
+  updateProductController,
   listProductsController,
   createBatchController,
   listBatchesController,
+  generationStatusController,
   generateCodesController,
   scanActivityController,
   exportBatchController,
 } from '../controllers/manufacturerController.js';
 
 const router = express.Router();
-
-router.post(
-  '/products',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  registerProduct
-);
-router.get(
-  '/products',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  listProductsController
-);
-router.post(
-  '/batches',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  createBatchController
-);
-router.get(
-  '/batches',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  listBatchesController
-);
-router.post(
-  '/batches/:id/generate-codes',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  generateCodesController
-);
-router.get(
-  '/scan-activity',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  scanActivityController
-);
-router.get(
-  '/batches/:id/export',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  exportBatchController
-);
-
+router.use(authMiddleware, manufacturerAuthMiddleware);
+router.get('/products', listProductsController);
+router.post('/products', registerProduct);
+router.patch('/products/:id', updateProductController);
+router.get('/batches', listBatchesController);
+router.post('/batches', createBatchController);
+router.get('/batches/:id/generation-status', generationStatusController);
+router.post('/batches/:id/generate-codes', generateCodesController);
+router.get('/scan-activity', scanActivityController);
+router.get('/batches/:id/export', exportBatchController);
 export default router;

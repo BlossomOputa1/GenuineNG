@@ -1,8 +1,6 @@
-// Business logic only, independently testable.
-// productId ownership is enforced two ways: RLS's insert policy is the
-// real boundary (see migration below), but we also do an explicit
-// pre-check here so a mismatched productId returns a clear 404/403
-// instead of an opaque RLS-rejected-insert error.
+// Manufacturer batch operations. Writes stay RLS-scoped. Batch statistics are
+// aggregated in Postgres so the API remains practical for tens of thousands of
+// issued unit codes.
 
 export async function createBatch({
   supabase,
@@ -49,9 +47,8 @@ export async function createBatch({
     .single();
 
   if (error) {
-    // Postgres unique_violation on batches_batch_code_key
     if (error.code === '23505') {
-      const err = new Error('This batch code is already in use.');
+      const err = new Error('This batch code is already in use for this product.');
       err.statusCode = 409;
       err.code = 'BATCH_CODE_TAKEN';
       throw err;
@@ -65,68 +62,38 @@ export async function createBatch({
   return data;
 }
 
-// Read-only aggregate for the manufacturer's Overview/Batches pages
-// and the Generate Codes batch-selection dropdown. Same RLS-scoped
-// req.supabase pattern as createBatch above.
 export async function getBatchesForManufacturer({ supabase, manufacturerId }) {
-  const { data: batches, error: batchesError } = await supabase
-    .from('batches')
-    .select(
-      'id, batch_code, manufactured_date, expiry_date, units_produced, created_at, product_id, products!inner(id, name, manufacturer_id)'
-    )
-    .eq('products.manufacturer_id', manufacturerId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('get_manufacturer_batch_stats', {
+    p_manufacturer_id: manufacturerId,
+  });
 
-  if (batchesError) {
-    const err = new Error('Failed to load batches.');
+  if (error) {
+    const err = new Error('Failed to load batches. Run the latest Supabase migrations if this persists.');
     err.statusCode = 500;
-    err.cause = batchesError;
+    err.cause = error;
     throw err;
   }
 
-  if (!batches || batches.length === 0) {
-    return [];
-  }
+  return (data || []).map((row) => {
+    const codesGenerated = Number(row.codes_generated || 0);
+    const unitsProduced = Number(row.units_produced || 0);
+    const status = codesGenerated >= unitsProduced
+      ? 'generated'
+      : codesGenerated > 0
+        ? 'partial'
+        : 'ready_to_generate';
 
-  const batchIds = batches.map((b) => b.id);
-
-  const { data: units, error: unitsError } = await supabase
-    .from('unit_codes')
-    .select('unit_id, batch_id')
-    .in('batch_id', batchIds);
-
-  if (unitsError) {
-    const err = new Error('Failed to load unit codes for batch stats.');
-    err.statusCode = 500;
-    err.cause = unitsError;
-    throw err;
-  }
-
-  const codesGeneratedByBatch = new Map();
-  for (const unit of units || []) {
-    codesGeneratedByBatch.set(
-      unit.batch_id,
-      (codesGeneratedByBatch.get(unit.batch_id) || 0) + 1
-    );
-  }
-
-  return batches.map((b) => {
-    const codesGenerated = codesGeneratedByBatch.get(b.id) || 0;
     return {
-      id: b.id,
-      batchCode: b.batch_code,
-      productId: b.product_id,
-      productName: b.products.name,
-      manufacturedDate: b.manufactured_date,
-      expiryDate: b.expiry_date,
-      unitsProduced: b.units_produced,
+      id: row.id,
+      batchCode: row.batch_code,
+      productId: row.product_id,
+      productName: row.product_name,
+      manufacturedDate: row.manufactured_date,
+      expiryDate: row.expiry_date,
+      unitsProduced,
       codesGenerated,
-      // Deliberately just two states for now, matching "deliberately
-      // simple" elsewhere — a partial-generation state can't currently
-      // happen anyway, since generate-codes is all-or-nothing per batch
-      // (fails loud and stops on first chunk error, no partial retry path).
-      status:
-        codesGenerated >= b.units_produced ? 'generated' : 'ready_to_generate',
+      createdAt: row.created_at,
+      status,
     };
   });
 }

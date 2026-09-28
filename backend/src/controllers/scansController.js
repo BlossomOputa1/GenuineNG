@@ -2,17 +2,12 @@ import { validateScanInput } from '../validators/scanInputValidator.js';
 
 const PAGE_SIZE_DEFAULT = 20;
 const PAGE_SIZE_MAX = 50;
-const SCAN_COLUMNS = 'id, session_id, user_id, product_name, manufacturer, manufacturer_text, registration_number, batch_number, expiry_printed, expiry_normalized, ingredients, verification_score, score_band, recommendation, limitation, dataset_meta, checked_at, created_at, updated_at';
-const CHECK_COLUMNS = 'id, scan_id, user_id, check_key, status, reason, source, checked_at';
+const SCAN_COLUMNS = 'id, session_id, user_id, product_name, manufacturer_text, registration_number, expiry_printed, expiry_normalized, result_summary, checked_at, created_at, updated_at';
+const CHECK_COLUMNS = 'id, scan_id, user_id, check_key, status, reason, source, checked_at, created_at';
 
 function requireRequestContext(req, res) {
   if (!req.user?.id || !req.supabase) {
-    res.status(401).json({
-      error: {
-        code: 'UNAUTHENTICATED',
-        message: 'Authenticated scan access is required.',
-      },
-    });
+    res.status(401).json({ error: { code: 'UNAUTHENTICATED', message: 'Authenticated scan access is required.' } });
     return false;
   }
   return true;
@@ -21,98 +16,42 @@ function requireRequestContext(req, res) {
 export async function listScans(req, res) {
   if (!requireRequestContext(req, res)) return;
   try {
-    const requestedLimit = Number.parseInt(req.query?.limit, 10);
-    const limit = Math.min(
-      Number.isFinite(requestedLimit) && requestedLimit > 0
-        ? requestedLimit
-        : PAGE_SIZE_DEFAULT,
-      PAGE_SIZE_MAX
-    );
-    const cursor = typeof req.query?.cursor === 'string' ? req.query.cursor : null;
+    const requested = Number.parseInt(req.query?.limit, 10);
+    const limit = Math.min(Number.isFinite(requested) && requested > 0 ? requested : PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX);
     const sessionId = typeof req.query?.session_id === 'string' ? req.query.session_id.trim() : null;
     const includeChecks = req.query?.include === 'checks';
-
     let query = req.supabase
       .from('scans')
-      .select(
-        includeChecks ? `${SCAN_COLUMNS}, checks:scan_checks(${CHECK_COLUMNS})` : SCAN_COLUMNS
-      )
+      .select(includeChecks ? `${SCAN_COLUMNS}, checks:scan_checks(${CHECK_COLUMNS})` : SCAN_COLUMNS)
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(limit);
-
-    if (cursor) query = query.lt('created_at', cursor);
     if (sessionId) query = query.eq('session_id', sessionId);
-
     const { data = [], error } = await query;
-    if (error) {
-      console.error('Failed to list scans:', error);
-      return res.status(500).json({
-        error: { code: 'SCANS_LIST_FAILED', message: 'Could not list scans.' },
-      });
-    }
-
-    const lastRow = data.at(-1);
-    const nextCursor = data.length === limit ? lastRow?.created_at || null : null;
-    return res.json({ data, next_cursor: nextCursor });
+    if (error) throw error;
+    return res.json({ data });
   } catch (error) {
-    console.error('Scan fetch error:', error);
-    console.error('Unexpected scan list error:', error);
-    return res.status(500).json({
-      error: { code: 'SCANS_LIST_FAILED', message: 'Could not list scans.' },
-    });
+    console.error('Failed to list scans:', error);
+    return res.status(500).json({ error: { code: 'SCANS_LIST_FAILED', message: 'Could not list scans.' } });
   }
 }
 
 export async function getScan(req, res) {
   if (!requireRequestContext(req, res)) return;
   try {
-    const id = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
-    if (!id) {
-      return res.status(400).json({
-        error: { code: 'SCAN_ID_REQUIRED', message: 'Scan id is required.' },
-      });
-    }
-
-    const { data: scan, error: scanError } = await req.supabase
-      .from('scans')
-      .select(SCAN_COLUMNS)
-      .eq('user_id', req.user.id)
-      .eq('id', id)
-      .maybeSingle();
-
-    if (scanError) {
-      console.error('Failed to load scan:', scanError);
-      return res.status(500).json({
-        error: { code: 'SCAN_FETCH_FAILED', message: 'Could not load scan.' },
-      });
-    }
-    if (!scan) {
-      return res.status(404).json({
-        error: { code: 'SCAN_NOT_FOUND', message: 'Scan not found.' },
-      });
-    }
-
+    const id = String(req.params?.id || '').trim();
+    const { data: scan, error } = await req.supabase
+      .from('scans').select(SCAN_COLUMNS).eq('user_id', req.user.id).eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!scan) return res.status(404).json({ error: { code: 'SCAN_NOT_FOUND', message: 'Scan not found.' } });
     const { data: checks = [], error: checksError } = await req.supabase
-      .from('scan_checks')
-      .select(CHECK_COLUMNS)
-      .eq('scan_id', id);
-
-    if (checksError) {
-      console.error('Failed to load scan checks:', checksError);
-      return res.status(500).json({
-        error: { code: 'CHECKS_FETCH_FAILED', message: 'Could not load check details.' },
-      });
-    }
-
+      .from('scan_checks').select(CHECK_COLUMNS).eq('scan_id', id).order('created_at');
+    if (checksError) throw checksError;
     return res.json({ ...scan, checks });
   } catch (error) {
-    console.error('Scan fetch error:', error);
-    console.error('Unexpected scan detail error:', error);
-    return res.status(500).json({
-      error: { code: 'SCAN_FETCH_FAILED', message: 'Could not load scan.' },
-    });
+    console.error('Failed to load scan:', error);
+    return res.status(500).json({ error: { code: 'SCAN_FETCH_FAILED', message: 'Could not load scan.' } });
   }
 }
 
@@ -120,122 +59,51 @@ export async function createScan(req, res) {
   if (!requireRequestContext(req, res)) return;
   try {
     const { valid, errors } = validateScanInput(req.body);
-
-    if (!valid) {
-      return res.status(400).json({
-        error: { code: 'INVALID_INPUT', message: errors.join(' ') },
-      });
-    }
+    if (!valid) return res.status(400).json({ error: { code: 'INVALID_INPUT', message: errors.join(' ') } });
 
     const body = req.body;
-    const sessionId = body.session_id ?? body.sessionId ?? null;
-
-    if (!sessionId) {
-      return res.status(400).json({
-        error: {
-          code: 'SESSION_ID_REQUIRED',
-          message: 'session_id is required to save a scan.',
-        },
-      });
-    }
-
-    const scanRow = {
-      session_id: sessionId,
-      user_id: req.user.id,
-      product_name: body.product_name ?? body.productName ?? null,
-      manufacturer: body.manufacturer ?? null,
-      manufacturer_text: body.manufacturer_text ?? null,
+    const checks = (body.checks || []).map((check) => ({
+      check_key: check.check_key ?? check.check_type,
+      status: check.status ?? check.outcome,
+      reason: check.reason || '',
+      source: check.source ?? check.source_name ?? null,
+      checked_at: check.checked_at ?? check.source_last_checked_at ?? null,
+    }));
+    const scan = {
+      product_name: body.product_name ?? null,
+      manufacturer_text: body.manufacturer_text ?? body.manufacturer ?? null,
       registration_number: body.registration_number ?? null,
-      batch_number: body.batch_number ?? null,
       expiry_printed: body.expiry_printed ?? body.expiryDate ?? null,
       expiry_normalized: body.expiry_normalized ?? body.expiry_date ?? null,
-      ingredients: body.ingredients ?? body.ingredients_text ?? null,
-      verification_score: body.verification_score ?? body.verificationScore ?? null,
-      score_band: body.score_band ?? body.scoreBand ?? null,
-      recommendation: body.recommendation ?? body.result_summary?.verdict ?? null,
-      limitation: body.limitation ?? null,
-      dataset_meta: body.dataset_meta ?? null,
+      result_summary: body.result_summary ?? null,
       checked_at: body.checked_at ?? null,
     };
 
-    const { data: scan, error } = await req.supabase
-      .from('scans')
-      .insert(scanRow)
-      .select(SCAN_COLUMNS)
-      .single();
-
-    if (error || !scan) {
-      console.error('Failed to create scan:', error);
-      return res.status(500).json({
-        error: { code: 'SCAN_CREATE_FAILED', message: 'Could not save scan.' },
-      });
-    }
-
-    if (Array.isArray(body.checks) && body.checks.length > 0) {
-      const checkRows = body.checks.map((check) => ({
-        scan_id: scan.id,
-        user_id: req.user.id,
-        check_key: check.check_key ?? check.check_type,
-        status: check.status ?? check.outcome,
-        reason: check.reason ?? '',
-        source: check.source ?? check.source_name ?? null,
-        checked_at: check.checked_at ?? check.source_last_checked_at ?? null,
-      }));
-      const { error: checksError } = await req.supabase
-        .from('scan_checks')
-        .insert(checkRows);
-      if (checksError) {
-        console.error('Failed to save scan checks:', checksError);
-        return res.status(500).json({
-          error: { code: 'CHECKS_CREATE_FAILED', message: 'Could not save scan checks.' },
-        });
-      }
-    }
-
-    return res.status(201).json(scan);
-  } catch (error) {
-    console.error('Unexpected scan creation error:', error);
-    return res.status(500).json({
-      error: { code: 'SCAN_CREATE_FAILED', message: 'Could not save scan.' },
+    const { data, error } = await req.supabase.rpc('save_label_scan', {
+      p_session_id: body.session_id ?? body.sessionId ?? null,
+      p_title: body.title ?? body.product_name ?? 'New product check',
+      p_scan: scan,
+      p_checks: checks,
+      p_existing_scan_id: body.existing_scan_id ?? null,
     });
+    if (error) throw error;
+    return res.status(201).json({ id: data.scanId, session_id: data.sessionId });
+  } catch (error) {
+    console.error('Failed to save scan atomically:', error);
+    return res.status(500).json({ error: { code: 'SCAN_CREATE_FAILED', message: 'Could not save this check to history.' } });
   }
 }
 
 export async function deleteScan(req, res) {
   if (!requireRequestContext(req, res)) return;
   try {
-    const id = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
-    if (!id) {
-      return res.status(400).json({
-        error: { code: 'SCAN_ID_REQUIRED', message: 'Scan id is required.' },
-      });
-    }
-
-    const { data, error } = await req.supabase
-      .from('scans')
-      .delete()
-      .eq('user_id', req.user.id)
-      .eq('id', id)
-      .select('id')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Failed to delete scan:', error);
-      return res.status(500).json({
-        error: { code: 'SCAN_DELETE_FAILED', message: 'Could not delete scan.' },
-      });
-    }
-    if (!data) {
-      return res.status(404).json({
-        error: { code: 'SCAN_NOT_FOUND', message: 'Scan not found.' },
-      });
-    }
-
+    const id = String(req.params?.id || '').trim();
+    const { data, error } = await req.supabase.from('scans').delete().eq('user_id', req.user.id).eq('id', id).select('id').maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: { code: 'SCAN_NOT_FOUND', message: 'Scan not found.' } });
     return res.status(204).send();
   } catch (error) {
-    console.error('Unexpected scan deletion error:', error);
-    return res.status(500).json({
-      error: { code: 'SCAN_DELETE_FAILED', message: 'Could not delete scan.' },
-    });
+    console.error('Failed to delete scan:', error);
+    return res.status(500).json({ error: { code: 'SCAN_DELETE_FAILED', message: 'Could not delete scan.' } });
   }
 }

@@ -1,5 +1,14 @@
-nafdac_greenbook_export.json
 .env
+.env.*
+!.env.example
 node_modules/
+frontend/node_modules/
+frontend/dist/
+backend/node_modules/
+frontend/dist/
+frontend/.env.local
+.vercel/
+qr-only-test.zip
+export-test.zip
 test-extract.js
 test-full-flow.js

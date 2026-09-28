@@ -32,9 +32,11 @@ function canonicalize(payload) {
   return JSON.stringify(payload);
 }
 
-export function signUnit({ productId, batchId, batchCode, unitIndex }) {
+export function signUnit({ productId, batchId, unitIndex }) {
   const keyVersion = getKeyVersion();
-  const unitId = `${batchCode}-${String(unitIndex).padStart(6, '0')}`;
+  // Batch UUID is used rather than the human batch code so two different
+  // manufacturers may safely use the same production batch label.
+  const unitId = `${batchId}-${String(unitIndex).padStart(6, '0')}`;
 
   const payload = buildPayload({
     productId,
@@ -84,7 +86,9 @@ export function verifySignature({ payload, signature }) {
     });
     const message = Buffer.from(canonicalize(canonicalPayload), 'utf8');
     const signatureBuffer = Buffer.from(signature, 'base64');
-    return cryptoVerify(null, message, getPublicKey(), signatureBuffer);
+    const publicKey = getPublicKey(payload.keyVersion);
+    if (!publicKey) return false;
+    return cryptoVerify(null, message, publicKey, signatureBuffer);
   } catch {
     return false;
   }

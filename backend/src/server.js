@@ -10,9 +10,10 @@ import manufacturerRouter from './routes/manufacturer.js';
 import verifyCodeRouter from './routes/verifyCode.js';
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import passwordResetRouter from './routes/passwordReset.js';
+import partnerApplicationsRouter from './routes/partnerApplications.js';
 
 const requiredEnvVars = [
+  'GEMINI_API_KEY',
   'SUPABASE_URL',
   'SUPABASE_PUBLISHABLE_KEY',
   'SUPABASE_SECRET_KEY',
@@ -75,6 +76,18 @@ const apiLimiter = rateLimit({
   },
 });
 
+// Manufacturer generation can legitimately require up to 100 chunk requests
+// for a 100,000-unit batch. Authentication + ownership checks still apply.
+const manufacturerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 240,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: {
+    error: { code: 'RATE_LIMITED', message: 'Too many manufacturer requests. Please retry shortly.' },
+  },
+});
+
 app.use(express.json({ limit: '32kb' }));
 app.use(compression());
 
@@ -88,7 +101,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'genuineng-layer1',
+    service: 'genuineng',
     time: new Date().toISOString(),
   });
 });
@@ -96,8 +109,14 @@ app.get('/api/health', (req, res) => {
 app.use('/api', apiLimiter, extractLabelRouter);
 app.use('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
-app.use('/api/manufacturer', apiLimiter, manufacturerRouter);
-app.use('/api/password-reset', apiLimiter, passwordResetRouter);
+if (process.env.MANUFACTURER_PORTAL_ENABLED !== 'false') {
+  app.use('/api/manufacturer', manufacturerLimiter, manufacturerRouter);
+} else {
+  app.use('/api/manufacturer', (_req, res) => res.status(503).json({
+    error: { code: 'MANUFACTURER_PORTAL_DISABLED', message: 'The manufacturer portal is currently disabled.' },
+  }));
+}
+app.use('/api/partner-applications', apiLimiter, partnerApplicationsRouter);
 app.use('/api/verify-code', apiLimiter, verifyCodeRouter);
 
 app.use('/api', (req, res) => {
@@ -127,5 +146,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () =>
-  console.log(`GenuineNG Layer 1 backend running on port ${PORT}`)
+  console.log(`GenuineNG backend running on port ${PORT}`)
 );

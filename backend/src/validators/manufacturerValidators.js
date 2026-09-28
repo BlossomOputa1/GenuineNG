@@ -14,7 +14,10 @@ export function validateProductInput(body) {
     typeof body?.nafdacNumber === 'string' ? body.nafdacNumber.trim() : '';
 
   if (!name) errors.push('name is required.');
+  else if (name.length > 200) errors.push('name cannot exceed 200 characters.');
   if (!category) errors.push('category is required.');
+  else if (category.length > 80) errors.push('category cannot exceed 80 characters.');
+  if (nafdacNumber.length > 120) errors.push('nafdacNumber cannot exceed 120 characters.');
 
   if (errors.length > 0) {
     return { valid: false, errors };
@@ -32,7 +35,6 @@ export function validateProductInput(body) {
     },
   };
 }
-// ...keep validateProductInput as-is, add this below it:
 
 export function validateBatchInput(body) {
   const errors = [];
@@ -51,6 +53,7 @@ export function validateBatchInput(body) {
 
   if (!productId) errors.push('productId is required.');
   if (!batchCode) errors.push('batchCode is required.');
+  else if (batchCode.length > 100) errors.push('batchCode cannot exceed 100 characters.');
   if (!manufacturedDate || Number.isNaN(Date.parse(manufacturedDate))) {
     errors.push('manufacturedDate must be a valid ISO 8601 date.');
   }
@@ -59,6 +62,12 @@ export function validateBatchInput(body) {
   }
   if (!Number.isInteger(unitsProduced) || unitsProduced <= 0) {
     errors.push('unitsProduced must be a positive integer.');
+  } else if (unitsProduced > 100000) {
+    errors.push('unitsProduced cannot exceed 100000 units per batch.');
+  }
+
+  if (manufacturedDate && expiryDate && !Number.isNaN(Date.parse(manufacturedDate)) && !Number.isNaN(Date.parse(expiryDate)) && Date.parse(expiryDate) <= Date.parse(manufacturedDate)) {
+    errors.push('expiryDate must be later than manufacturedDate.');
   }
 
   if (errors.length > 0) {

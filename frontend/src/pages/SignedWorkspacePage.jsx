@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Icon from "../components/Icon";
 import LabelCheckFlow from "../components/LabelCheckFlow";
+import NotificationBell from "../components/NotificationBell";
 import {
   clearAllSessions,
-  createSession,
   deleteSession,
   getSessionWithScans,
   listSessions,
   renameSession,
   saveScan,
+  saveCodeScan,
   setSessionPinned,
 } from "../services/historyService";
 import { getDisplayName } from "../services/supabase";
@@ -51,6 +52,7 @@ export default function SignedWorkspacePage({
   const [openMenuId, setOpenMenuId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [newCheckVersion, setNewCheckVersion] = useState(0);
 
   const threadId = useMemo(() => {
     const match = routePath.match(/^\/app\/([^/]+)$/);
@@ -87,26 +89,24 @@ export default function SignedWorkspacePage({
 
   async function completeScan(result, options = {}) {
     try {
-      if (threadId && currentThread) {
-        const scanId = await saveScan(
-          userId,
-          threadId,
-          result,
-          options.existingScanId || null,
-        );
-        await load();
-        return { scanId, sessionId: threadId };
+      const isCode = result?.type === 'genuine_code' || Boolean(result?.payload?.unitId);
+      const persisted = isCode
+        ? await saveCodeScan(userId, threadId || null, result)
+        : await saveScan(userId, threadId || null, result, options.existingScanId || null);
+
+      if (!persisted?.sessionId || !persisted?.scanId) {
+        throw new Error('The check completed, but GenuineNG could not confirm that history was saved.');
       }
-      const title = result.fields?.productName || "New product check";
-      const created = await createSession(userId, title);
-      const scanId = await saveScan(userId, created.id, result);
-      await refreshThreads();
-      navigate(`/app/${encodeURIComponent(created.id)}`, true);
-      return { scanId, sessionId: created.id };
+
+      if (threadId) {
+        await load();
+      } else {
+        await refreshThreads();
+        navigate(`/app/${encodeURIComponent(persisted.sessionId)}`, true);
+      }
+      return persisted;
     } catch (problem) {
-      setError(
-        problem.message || "The result was checked, but saving history failed.",
-      );
+      setError(problem.message || "The result was checked, but saving history failed.");
       return null;
     }
   }
@@ -162,6 +162,7 @@ export default function SignedWorkspacePage({
       await clearAllSessions(userId);
       setThreads([]);
       setCurrentThread(null);
+      setNewCheckVersion((value) => value + 1);
       navigate("/app", true);
     } catch (problem) {
       setError(problem.message);
@@ -172,6 +173,20 @@ export default function SignedWorkspacePage({
     setSidebarOpen(false);
     setOpenMenuId(null);
     navigate(path);
+  }
+
+  function startNewCheck() {
+    setSidebarOpen(false);
+    setOpenMenuId(null);
+    setRenamingId(null);
+    setCurrentThread(null);
+    setError("");
+    // A new check is a brand-new, unlocked working session even when the
+    // browser is already on /app. Remounting the flow clears the local
+    // mode lock without requiring a page refresh.
+    setNewCheckVersion((value) => value + 1);
+    if (threadId) navigate("/app");
+    else window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   return (
@@ -249,7 +264,7 @@ export default function SignedWorkspacePage({
             type="button"
             className="workspace-new-check"
             title="New Check"
-            onClick={() => sidebarNavigate("/app")}
+            onClick={startNewCheck}
           >
             <Icon name="plus" size={17} />
             <span>New Check</span>
@@ -265,7 +280,7 @@ export default function SignedWorkspacePage({
           <button
             type="button"
             title="Partners"
-            onClick={() => sidebarNavigate("/manufacturer")}
+            onClick={() => sidebarNavigate("/partners")}
           >
             <Icon name="scan" size={17} />
             <span>Partners</span>
@@ -394,8 +409,7 @@ export default function SignedWorkspacePage({
             ))
           ) : (
             <p className="workspace-history-empty">
-              Your saved scan sessions will appear here after the first
-              completed check.
+              Your saved scan sessions will appear here.
             </p>
           )}
         </div>
@@ -433,10 +447,11 @@ export default function SignedWorkspacePage({
       <main className="workspace-main">
         <header className="workspace-main-header">
           <div>
-            <span className="eyebrow">GENUINENG LAYER 1</span>
+            <span className="eyebrow">{currentThread?.mode === "genuine_code" ? "GENUINENG CODE" : "GENUINENG REGISTRY"}</span>
             <strong>{currentThread?.title || "New product check"}</strong>
           </div>
           <div className="workspace-header-user">
+            <NotificationBell userId={userId} navigate={navigate} compact />
             <span>{displayName}</span>
             <div className="workspace-avatar small">
               {initials(displayName)}
@@ -460,18 +475,21 @@ export default function SignedWorkspacePage({
               <h2>That saved check was not found.</h2>
               <button
                 className="button primary"
-                onClick={() => navigate("/app")}
+                onClick={startNewCheck}
               >
                 Start a new check
               </button>
             </div>
           ) : (
             <LabelCheckFlow
+              key={`${threadId || "new"}:${newCheckVersion}`}
               previousScans={currentThread?.scans || []}
               onResultComplete={completeScan}
               mode="signed"
               onCancelPendingScan={() => navigate("/app")}
               conversationId={threadId}
+              initialMode={currentThread?.mode === 'genuine_code' ? 'code' : 'registry'}
+              sessionLocked={Boolean(currentThread)}
             />
           )}
         </div>

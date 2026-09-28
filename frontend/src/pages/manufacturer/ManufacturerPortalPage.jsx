@@ -6,6 +6,7 @@ const ManufacturerBatchesPage = lazy(() => import("./ManufacturerBatchesPage"));
 const ManufacturerDashboardPage = lazy(() => import("./ManufacturerDashboardPage"));
 const ManufacturerProductsPage = lazy(() => import("./ManufacturerProductsPage"));
 const ManufacturerSimplePage = lazy(() => import("./ManufacturerSimplePage"));
+const ManufacturerCompanyProfilePage = lazy(() => import("./ManufacturerCompanyProfilePage"));
 const GenerateCodesPage = lazy(() => import("./GenerateCodesPage"));
 const ScanActivityPage = lazy(() => import("./ScanActivityPage"));
 
@@ -15,7 +16,7 @@ function pageTitle(routePath) {
   if (routePath === "/manufacturer/generate-codes") return "Generate Codes";
   if (routePath === "/manufacturer/scan-activity") return "Scan Activity";
   if (routePath === "/manufacturer/team") return "Team";
-  if (routePath === "/manufacturer/settings") return "Settings";
+  if (routePath === "/manufacturer/profile") return "Company Profile";
   return "Overview";
 }
 
@@ -36,7 +37,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, session, o
         if (!supabase || !session?.user?.id) throw new Error("Your account session is unavailable.");
         const { data, error } = await supabase
           .from("manufacturers")
-          .select("company_name, approved, approved_at")
+          .select("company_name, contact_person_name, business_email, phone_number, approved, approved_at")
           .eq("user_id", session.user.id)
           .maybeSingle();
         if (error) throw error;
@@ -45,6 +46,9 @@ export default function ManufacturerPortalPage({ routePath, navigate, session, o
             companyName: data.company_name || "Approved manufacturer",
             initials: (data.company_name || "AM").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
             status: "Approved manufacturer",
+            contactPersonName: data.contact_person_name || "",
+            businessEmail: data.business_email || "",
+            phoneNumber: data.phone_number || "",
           } : null);
         }
       } catch (problem) {
@@ -66,7 +70,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, session, o
   else if (routePath === "/manufacturer/generate-codes") content = <GenerateCodesPage />;
   else if (routePath === "/manufacturer/scan-activity") content = <ScanActivityPage />;
   else if (routePath === "/manufacturer/team") content = <ManufacturerSimplePage page="team" />;
-  else if (routePath === "/manufacturer/settings") content = <ManufacturerSimplePage page="settings" />;
+  else if (routePath === "/manufacturer/profile") content = <ManufacturerCompanyProfilePage profile={profile} />;
 
   return (
     <div className={`manufacturer-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
@@ -86,7 +90,7 @@ export default function ManufacturerPortalPage({ routePath, navigate, session, o
           <div><span>GENUINENG LAYER 2</span><strong>{title}</strong></div>
           <div className="manufacturer-topbar-actions">
             <span className="manufacturer-approved-badge"><i /> Approved</span>
-            <button type="button" className="manufacturer-topbar-profile" onClick={() => navigate("/manufacturer/settings")}><span>{profile?.companyName || "Approved manufacturer"}</span><b>{profile?.initials || "AM"}</b></button>
+            <button type="button" className="manufacturer-topbar-profile" onClick={() => navigate("/manufacturer/profile")}><span>{profile?.companyName || "Approved manufacturer"}</span><b>{profile?.initials || "AM"}</b></button>
           </div>
         </header>
         <div className="manufacturer-content"><Suspense fallback={<div className="empty-state"><p>Loading portal view...</p></div>}>{content}</Suspense></div>
