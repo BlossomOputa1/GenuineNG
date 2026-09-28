@@ -14,7 +14,7 @@ const navGroups = [
     label: "MANAGEMENT",
     items: [
       { label: "Team", path: "/manufacturer/team", icon: "users" },
-      { label: "Settings", path: "/manufacturer/settings", icon: "settings" },
+      { label: "Company Profile", path: "/manufacturer/profile", icon: "settings" },
     ],
   },
 ];

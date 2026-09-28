@@ -24,8 +24,9 @@ export async function compareProductIdentity(extracted, record) {
 
   const prompt = `You compare product label data for a Nigerian drug verification system.
 Given two records, decide if they plausibly describe the SAME product, tolerating OCR noise,
-abbreviations (e.g. "Ltd" vs "Limited"), and minor spelling variation. Do NOT be lenient about
-genuinely different products or different manufacturers.
+abbreviations (e.g. "Ltd" vs "Limited"), and minor spelling variation. A blank extracted field means
+that field is unknown: IGNORE it completely and compare only extracted fields that are present. Do NOT
+be lenient when a provided product name or manufacturer genuinely conflicts with the reference record.
 
 Extracted from photo: product name = "${extracted.productName || ''}", manufacturer = "${extracted.manufacturer || ''}"
 Reference record: product name = "${record.productName || ''}", manufacturer = "${record.manufacturer || ''}"

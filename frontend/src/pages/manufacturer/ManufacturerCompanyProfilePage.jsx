@@ -1,0 +1,4 @@
+import Icon from '../../components/Icon';
+export default function ManufacturerCompanyProfilePage({ profile }) {
+  return <div className="manufacturer-page"><section className="manufacturer-page-intro compact"><div><span className="manufacturer-eyebrow">COMPANY PROFILE</span><h1>{profile.companyName}</h1><p>Company information attached to this approved manufacturer account.</p></div></section><section className="manufacturer-panel manufacturer-profile-details"><div><small>Company</small><strong>{profile.companyName}</strong></div><div><small>Contact person</small><strong>{profile.contactPersonName || 'Not provided'}</strong></div><div><small>Business email</small><strong>{profile.businessEmail || 'Not provided'}</strong></div><div><small>Phone</small><strong>{profile.phoneNumber || 'Not provided'}</strong></div><div><small>Status</small><strong><Icon name="check" size={15} /> Approved manufacturer</strong></div></section></div>;
+}

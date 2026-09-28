@@ -9,17 +9,18 @@ import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
 import manufacturerRouter from './routes/manufacturer.js';
 import verifyCodeRouter from './routes/verifyCode.js';
-import passwordResetRouter from './routes/passwordReset.js';
 import bmoniRouter from './routes/bmoni.js'; // Layer 2 BMoni routes (VBA, offramp, webhooks)
 
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import partnerApplicationsRouter from './routes/partnerApplications.js';
 
 // BMoni sandbox default
 process.env.BMONI_BASE_URL =
   process.env.BMONI_BASE_URL || 'https://embedded-dev.bmoni.com';
 
 const requiredEnvVars = [
+  'GEMINI_API_KEY',
   'SUPABASE_URL',
   'SUPABASE_PUBLISHABLE_KEY',
   'SUPABASE_SECRET_KEY',
@@ -96,7 +97,19 @@ const apiLimiter = rateLimit({
   },
 });
 
-// Capture raw body specifically for BMoni webhook verification
+// Manufacturer generation can legitimately require up to 100 chunk requests
+// for a 100,000-unit batch. Authentication + ownership checks still apply.
+const manufacturerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 240,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: {
+    error: { code: 'RATE_LIMITED', message: 'Too many manufacturer requests. Please retry shortly.' },
+  },
+});
+
+// Preserve raw body buffer for webhook signature validation
 app.use(
   express.json({
     limit: '32kb',
@@ -107,7 +120,6 @@ app.use(
     },
   })
 );
-
 app.use(compression());
 
 app.use((req, res, next) => {
@@ -120,8 +132,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'genuineng-backend',
-    environment: process.env.NODE_ENV || 'development',
+    service: 'genuineng',
     time: new Date().toISOString(),
   });
 });
@@ -130,11 +141,17 @@ app.get('/api/health', (req, res) => {
 app.use('/api', apiLimiter, extractLabelRouter);
 app.use('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
-app.use('/api/manufacturer', apiLimiter, manufacturerRouter);
-app.use('/api/password-reset', apiLimiter, passwordResetRouter);
+if (process.env.MANUFACTURER_PORTAL_ENABLED !== 'false') {
+  app.use('/api/manufacturer', manufacturerLimiter, manufacturerRouter);
+} else {
+  app.use('/api/manufacturer', (_req, res) => res.status(503).json({
+    error: { code: 'MANUFACTURER_PORTAL_DISABLED', message: 'The manufacturer portal is currently disabled.' },
+  }));
+}
+app.use('/api/partner-applications', apiLimiter, partnerApplicationsRouter);
 app.use('/api/verify-code', apiLimiter, verifyCodeRouter);
 
-// Layer 2 BMoni routes (Webhook endpoint inside bmoniRouter should not be rate-limited by apiLimiter)
+// Layer 2 BMoni routes (Webhook endpoint inside bmoniRouter is not rate-limited by apiLimiter)
 app.use('/api/bmoni', bmoniRouter);
 
 app.use('/api', (req, res) => {
@@ -163,5 +180,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () =>
-  console.log(`GenuineNG Backend (Layer 1 + Layer 2 BMoni) running on port ${PORT}`)
+  console.log(`GenuineNG backend running on port ${PORT}`)
 );

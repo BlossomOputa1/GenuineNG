@@ -10,7 +10,6 @@
     "refresh-data": "node ../scripts/fetch-nafdac-greenbook.js"
   },
   "dependencies": {
-    "@google/genai": "^2.24.0",
     "@supabase/supabase-js": "^2.116.0",
     "archiver": "^8.0.0",
     "axios": "^1.20.0",
@@ -21,7 +20,8 @@
     "express-rate-limit": "^8.7.0",
     "multer": "^2.4.0",
     "qrcode": "^1.5.4",
-    "viem": "^2.56.9"
+    "viem": "^2.56.9",
+    "pngjs": "^5.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

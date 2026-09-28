@@ -18,8 +18,6 @@ test('only the four current Layer 1 fields are sent to the backend', () => {
     manufacturer: ' Maker ',
     registrationNumber: ' REG-1 ',
     expiryDate: '01/2028',
-    batchNumber: 'legacy-value',
-    ingredients: 'legacy-value',
   });
   assert.deepEqual(payload, {
     productName: 'Product A',

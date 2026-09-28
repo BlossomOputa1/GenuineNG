@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./components/Icon";
+import NotificationBell from "./components/NotificationBell";
 import { signOut } from "./services/authService";
 import { checkBackendHealth } from "./services/api";
 import {
@@ -23,7 +24,10 @@ const productAlertText =
 
 const GuestScanPage = lazy(() => import("./pages/GuestScanPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const Layer2ScanPage = lazy(() => import("./pages/Layer2ScanPage"));
 const PlaceholderPage = lazy(() => import("./pages/PlaceholderPage"));
+const PartnerApplicationPage = lazy(() => import("./pages/PartnerApplicationPage"));
+const AdminPartnerApprovalPage = lazy(() => import("./pages/AdminPartnerApprovalPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const ScanPage = lazy(() => import("./pages/ScanPage"));
 const SignedWorkspacePage = lazy(() => import("./pages/SignedWorkspacePage"));
@@ -61,6 +65,7 @@ function AppContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [guestInitialPhoto, setGuestInitialPhoto] = useState(null);
   const [guestScans, setGuestScans] = useState([]);
+  const [guestCodeScans, setGuestCodeScans] = useState([]);
   const mainRef = useRef(null);
   const previousPath = useRef(route.pathname);
 
@@ -145,15 +150,21 @@ function AppContent() {
       setGuestInitialPhoto(null);
       setGuestScans([]);
     }
+    if (previousPath.current === "/code-scan" && route.pathname !== "/code-scan") {
+      setGuestCodeScans([]);
+    }
     previousPath.current = route.pathname;
   }, [route.pathname]);
   useEffect(() => {
-    const identifier = route.pathname.startsWith("/manufacturer")
-      ? `Manufacturer · ${route.pathname.split("/").filter(Boolean).slice(-1)[0] === "manufacturer" ? "Overview" : route.pathname.split("/").filter(Boolean).slice(-1)[0].replaceAll("-", " ")}`
+    const identifier = route.pathname === "/admin/partner-approval"
+      ? "Partner Approval"
+      : route.pathname.startsWith("/manufacturer")
+        ? `Manufacturer · ${route.pathname.split("/").filter(Boolean).slice(-1)[0] === "manufacturer" ? "Overview" : route.pathname.split("/").filter(Boolean).slice(-1)[0].replaceAll("-", " ")}`
       : route.pathname.startsWith("/app/")
         ? "Saved Check"
         : {
           "/scan": "Product Check",
+          "/code-scan": "GenuineNG Code",
           "/login": "Sign In",
           "/reset-password": "Reset Password",
           "/app": "Workspace",
@@ -213,8 +224,9 @@ function AppContent() {
     route.pathname === "/app" || route.pathname.startsWith("/app/");
   const isManufacturerRoute =
     route.pathname === "/manufacturer" || route.pathname.startsWith("/manufacturer/");
+  const isPartnerApprovalRoute = route.pathname === "/admin/partner-approval";
 
-  if (authLoading && (isWorkspaceRoute || isManufacturerRoute))
+  if (authLoading && (isWorkspaceRoute || isManufacturerRoute || isPartnerApprovalRoute))
     return (
       <div className="app-shell">
         <main className="site-main workspace-login-fallback">
@@ -224,6 +236,29 @@ function AppContent() {
         </main>
       </div>
     );
+
+  if (isPartnerApprovalRoute) {
+    if (!session) {
+      const returnPath = `${route.pathname}${route.search}`;
+      return (
+        <div className="app-shell auth-route-shell">
+          <main className="site-main auth-route-main">
+            <LoginPage
+              session={session}
+              navigate={(path, replace = false) => navigate(path === "/app" ? returnPath : path, replace)}
+            />
+          </main>
+        </div>
+      );
+    }
+    return (
+      <AdminPartnerApprovalPage
+        routeSearch={route.search}
+        session={session}
+        navigate={navigate}
+      />
+    );
+  }
 
   if (isManufacturerRoute) {
     if (!session)
@@ -318,11 +353,13 @@ function AppContent() {
                 className="install-header-action"
                 onClick={installApp}
               >
-                <Icon name="plus" size={14} /> Install as app
+                <Icon name="plus" size={14} />
+                <span className="install-header-label">Install as app</span>
               </button>
             )}
             {session ? (
               <>
+                <NotificationBell userId={session.user.id} navigate={navigate} compact />
                 <span className="account-email">
                   {getDisplayName(session.user)}
                 </span>
@@ -455,9 +492,7 @@ function AppContent() {
         <div className="offline-strip" role="status">
           <Icon name="offline" size={17} />
           <p>
-            You’re offline. You can still review anything already on screen, but
-            OCR assets, live record checks and saved history may require a
-            connection.
+            Network unavailable. Live verification and history saving require a connection.
           </p>
         </div>
       )}
@@ -498,9 +533,21 @@ function AppContent() {
             onResultComplete={addGuestResult}
             navigate={navigate}
           />
+        ) : route.pathname === "/code-scan" ? (
+          <Layer2ScanPage
+            previousScans={guestCodeScans}
+            mode="guest"
+            onResultComplete={async (result) => {
+              const saved = { ...result, id: result.id || globalThis.crypto?.randomUUID?.() || `${Date.now()}` };
+              setGuestCodeScans((current) => [...current, saved]);
+              return saved;
+            }}
+          />
         ) : route.pathname === "/reset-password" ? (
           <ResetPasswordPage navigate={navigate} />
-        ) : ["/about", "/help", "/partners", "/contact"].includes(
+        ) : route.pathname === "/partners" ? (
+          <PartnerApplicationPage navigate={navigate} />
+        ) : ["/about", "/help", "/contact"].includes(
             route.pathname,
           ) ? (
           <PlaceholderPage page={route.pathname.slice(1)} navigate={navigate} />

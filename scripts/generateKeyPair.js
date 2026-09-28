@@ -16,8 +16,5 @@ const toEnvLine = (pem) => pem.trim().split('\n').join('\\n');
 console.log('--- paste this exact line into backend/.env ---');
 console.log(`GENUINENG_ED25519_PRIVATE_KEY="${toEnvLine(privatePem)}"`);
 
-console.log('\n--- paste this exact line into frontend/.env ---');
-console.log(`VITE_GENUINENG_PUBLIC_KEY="${toEnvLine(publicPem)}"`);
-
-console.log('\n--- also paste this same value into backend/.env ---');
+console.log('\n--- paste this exact line into backend/.env ---');
 console.log(`GENUINENG_ED25519_PUBLIC_KEY="${toEnvLine(publicPem)}"`);

@@ -1,89 +1,61 @@
-// backend/src/services/keyManager.js
-//
-// Reads and holds the Ed25519 key pair. Private key never leaves this
-// module — no function here returns it, logs it, or includes it in any
-// error message. Fails fast at import time if the private key is missing
-// or malformed, per the standing "validate env vars at startup" rule.
-
-// backend/src/services/keyManager.js
-
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 
-// Helper to sanitize PEM formatting passed via environment variables
 function normalizePem(keyString) {
   if (!keyString) return '';
-  return keyString
-    .replace(/\\n/g, '\n') // Replace literal "\n" strings with real line breaks
-    .replace(/\r/g, '')     // Strip carriage returns if copied from Windows
-    .trim();
+  return String(keyString).replace(/\\n/g, '\n').replace(/\r/g, '').trim();
 }
 
-function loadPrivateKey() {
-  const raw = process.env.GENUINENG_ED25519_PRIVATE_KEY;
-
-  if (!raw) {
-    console.error(
-      'Missing required environment variable: GENUINENG_ED25519_PRIVATE_KEY'
-    );
-    process.exit(1);
-  }
-
-  const normalized = normalizePem(raw);
-
-  try {
-    return createPrivateKey({ key: normalized, format: 'pem' });
-  } catch (err) {
-    // Helpful debug tip: If it still fails, err is caught here
-    console.error(
-      'GENUINENG_ED25519_PRIVATE_KEY is set but could not be parsed as a valid PKCS8 PEM key.'
-    );
-    process.exit(1);
-  }
+function fail(message) {
+  console.error(message);
+  process.exit(1);
 }
 
-function loadPublicKey() {
-  const raw = process.env.GENUINENG_ED25519_PUBLIC_KEY;
-
-  if (!raw) {
-    console.error(
-      'Missing required environment variable: GENUINENG_ED25519_PUBLIC_KEY'
-    );
-    process.exit(1);
-  }
-
-  const normalized = normalizePem(raw);
-
+function parsePrivateKey(raw) {
   try {
-    return createPublicKey({ key: normalized, format: 'pem' });
+    return createPrivateKey({ key: normalizePem(raw), format: 'pem' });
   } catch {
-    console.error(
-      'GENUINENG_ED25519_PUBLIC_KEY is set but could not be parsed as a valid SPKI PEM key.'
-    );
-    process.exit(1);
+    fail('GENUINENG_ED25519_PRIVATE_KEY is set but could not be parsed as a valid PKCS8 PEM key.');
   }
 }
 
-function loadKeyVersion() {
-  const version = process.env.GENUINENG_KEY_VERSION;
-  if (!version) {
-    console.error(
-      'Missing required environment variable: GENUINENG_KEY_VERSION'
-    );
-    process.exit(1);
+function parsePublicKey(raw, label = 'GENUINENG_ED25519_PUBLIC_KEY') {
+  try {
+    return createPublicKey({ key: normalizePem(raw), format: 'pem' });
+  } catch {
+    fail(`${label} could not be parsed as a valid SPKI PEM public key.`);
   }
-  return version;
 }
 
-const privateKey = loadPrivateKey();
-const publicKey = loadPublicKey();
-const keyVersion = loadKeyVersion();
+const keyVersion = String(process.env.GENUINENG_KEY_VERSION || '').trim();
+if (!keyVersion) fail('Missing required environment variable: GENUINENG_KEY_VERSION');
+
+const privateRaw = process.env.GENUINENG_ED25519_PRIVATE_KEY;
+const publicRaw = process.env.GENUINENG_ED25519_PUBLIC_KEY;
+if (!privateRaw) fail('Missing required environment variable: GENUINENG_ED25519_PRIVATE_KEY');
+if (!publicRaw) fail('Missing required environment variable: GENUINENG_ED25519_PUBLIC_KEY');
+
+const privateKey = parsePrivateKey(privateRaw);
+const publicKeys = new Map([[keyVersion, parsePublicKey(publicRaw)]]);
+
+// Optional key ring keeps previously-issued QR codes verifiable after the
+// current signing key rotates. Format: {"1":"-----BEGIN PUBLIC KEY-----..."}.
+if (process.env.GENUINENG_ED25519_PUBLIC_KEYS) {
+  try {
+    const ring = JSON.parse(process.env.GENUINENG_ED25519_PUBLIC_KEYS);
+    for (const [version, pem] of Object.entries(ring || {})) {
+      if (pem) publicKeys.set(String(version), parsePublicKey(pem, `public key version ${version}`));
+    }
+  } catch (error) {
+    fail(`GENUINENG_ED25519_PUBLIC_KEYS must be valid JSON: ${error.message}`);
+  }
+}
 
 export function getPrivateKey() {
   return privateKey;
 }
 
-export function getPublicKey() {
-  return publicKey;
+export function getPublicKey(version = keyVersion) {
+  return publicKeys.get(String(version)) || null;
 }
 
 export function getKeyVersion() {

@@ -1,24 +1,73 @@
 // test-bmoni-flow.js
 import 'dotenv/config';
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 
-// Adjust target URL if testing against hosted Render vs local server
-const BASE_URL = 'https://genuineng.onrender.com';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:4000';
 const WEBHOOK_SECRET = process.env.BMONI_WEBHOOK_SECRET;
 
-// 1. Replace these with actual test IDs from your database
-// test-bmoni-flow.js
-const TEST_BATCH_ID ='3b21967c-2652-426b-bba2-f81f25804a29';
+const TEST_BATCH_ID = '3b21967c-2652-426b-bba2-f81f25804a29';
 const TEST_REFERENCE = 'test-ref-bmoni-002';
-const TEST_AUTH_TOKEN = 'eyJhbGciOiJFUzI1NiIsImtpZCI6ImE1NGRjNTY4LTgxZjktNGYwOS1iZjBiLTY2YzhhMWRiMjFmZCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xibGN4YWNvY2pjZ3VjaHNja2N0LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI5NWU0YTYyNS04ZDkxLTRjNGEtOWJmMi03NTE1NTU2YjRlNzQiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzkwNTQxNzk5LCJpYXQiOjE3OTA1MzgxOTksImVtYWlsIjoiY2hpZGVyYW9wdXRhQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjaGlkZXJhb3B1dGFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IkJsb3Nzb20gT3B1dGEiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6Ijk1ZTRhNjI1LThkOTEtNGM0YS05YmYyLTc1MTU1NTZiNGU3NCJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzkwNTM4MTk5fV0sInNlc3Npb25faWQiOiIzZmFiNDljOC04ZmQ5LTRhMDAtYWNmYy03MWFhMjY3NzljNzkiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.iXJUaKEOWAPNpkOvZUfnwvaftGoayY1xl87Tcg24RStNFyJxbROZxH__unM1XtfKbpMG8mWf_DD-hpw7hjGdWA'
+
+const TEST_EMAIL = process.env.TEST_MANUFACTURER_EMAIL || 'chideraoputa@gmail.com';
+const TEST_PASSWORD = process.env.TEST_MANUFACTURER_PASSWORD;
 
 if (!WEBHOOK_SECRET) {
   console.error('Error: BMONI_WEBHOOK_SECRET is missing from .env');
   process.exit(1);
 }
 
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_PUBLISHABLE_KEY) {
+  console.error('Error: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is missing from .env');
+  process.exit(1);
+}
+
+if (!TEST_PASSWORD) {
+  console.error('Error: TEST_MANUFACTURER_PASSWORD is required in .env for dynamic authentication.');
+  process.exit(1);
+}
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_PUBLISHABLE_KEY
+);
+
+// Optional admin client to auto-reset test state if service role key is present
+const supabaseAdmin = process.env.SUPABASE_SECRET_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY)
+  : null;
+
+async function getFreshSessionToken() {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: TEST_EMAIL,
+    password: TEST_PASSWORD,
+  });
+
+  if (error || !data.session) {
+    throw new Error(`Authentication failed for ${TEST_EMAIL}: ${error?.message}`);
+  }
+
+  return data.session.access_token;
+}
+
+async function resetTestInvoice() {
+  if (!supabaseAdmin) return;
+  console.log('[Setup] Resetting test invoice to pending status...');
+  await supabaseAdmin
+    .from('invoices')
+    .update({ status: 'pending', settled_at: null })
+    .eq('reference', TEST_REFERENCE);
+}
+
 async function runTest() {
   console.log('--- Starting BMoni Payment Gate Integration Test ---\n');
+  console.log(`Target Base URL: ${BASE_URL}`);
+
+  await resetTestInvoice();
+
+  console.log(`[0] Logging in as ${TEST_EMAIL} to fetch fresh token...`);
+  const authToken = await getFreshSessionToken();
+  console.log('PASS: Fresh JWT session acquired.\n');
 
   // STEP 1: Verify the 402 Payment Gate
   console.log(`[1] Requesting code generation for batch: ${TEST_BATCH_ID}...`);
@@ -26,8 +75,9 @@ async function runTest() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
+      'Authorization': `Bearer ${authToken}`,
     },
+    body: JSON.stringify({ chunkSize: 100 }),
   });
 
   const initialBody = await initialRes.json();
@@ -37,12 +87,15 @@ async function runTest() {
   if (initialRes.status === 402) {
     console.log('PASS: Endpoint correctly returned 402 Payment Required.\n');
   } else {
-    console.warn(`NOTICE: Expected 402, but received ${initialRes.status}.\n`);
+    console.error(`FAIL: Expected 402, received ${initialRes.status}.\n`);
+    if (initialRes.status === 401 || initialRes.status === 403) {
+      console.error('Check whether your test user profile is approved in the manufacturers table.');
+      return;
+    }
   }
 
   // STEP 2: Dispatch Signed Webhook (smart_wallet.credited)
   console.log('[2] Simulating BMoni smart_wallet.credited webhook...');
-  
   const webhookPayload = JSON.stringify({
     event: 'smart_wallet.credited',
     data: {
@@ -54,7 +107,7 @@ async function runTest() {
     },
   });
 
-  // Calculate HMAC-SHA256 signature exactly like BMoni
+  // Calculate HMAC-SHA256 signature against the raw string
   const signature = crypto
     .createHmac('sha256', WEBHOOK_SECRET)
     .update(webhookPayload)
@@ -86,21 +139,19 @@ async function runTest() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${TEST_AUTH_TOKEN}`,
+      'Authorization': `Bearer ${authToken}`,
     },
+    body: JSON.stringify({ chunkSize: 100 }),
   });
 
   const finalBody = await finalRes.json();
   console.log(`Status Code: ${finalRes.status}`);
-  console.log('Response Summary:', {
-    status: finalRes.status,
-    resultSummary: finalBody.result ? `${finalBody.result.length || 'Batch'} codes processed` : finalBody,
-  });
+  console.log('Response Summary:', finalBody);
 
-  if (finalRes.status === 201 || finalRes.status === 200) {
+  if (finalRes.status === 200 || finalRes.status === 201 || finalRes.status === 202) {
     console.log('\nSUCCESS: 402 gate cleared and code generation completed.');
   } else {
-    console.log('\nFAIL: Gate remains locked. Check invoice settlement status in Supabase.');
+    console.error('\nFAIL: Gate remains locked. Inspect invoices row in Supabase.');
   }
 }
 
