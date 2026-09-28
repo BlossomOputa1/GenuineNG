@@ -3,7 +3,7 @@ import 'dotenv/config';
 import crypto from 'crypto';
 
 // Adjust target URL if testing against hosted Render vs local server
-const BASE_URL = process.env.TEST_TARGET_URL || 'http://localhost:4000';
+const BASE_URL = 'https://genuineng.onrender.com';
 const WEBHOOK_SECRET = process.env.BMONI_WEBHOOK_SECRET;
 
 // 1. Replace these with actual test IDs from your database
