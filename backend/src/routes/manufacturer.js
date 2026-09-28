@@ -139,47 +139,4 @@ router.post(
   }
 );
 
-router.post(
-  '/products',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  registerProduct
-);
-router.get(
-  '/products',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  listProductsController
-);
-router.post(
-  '/batches',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  createBatchController
-);
-router.get(
-  '/batches',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  listBatchesController
-);
-router.post(
-  '/batches/:id/generate-codes',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  generateCodesController
-);
-router.get(
-  '/scan-activity',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  scanActivityController
-);
-router.get(
-  '/batches/:id/export',
-  authMiddleware,
-  manufacturerAuthMiddleware,
-  exportBatchController
-);
-
 export default router;

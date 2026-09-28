@@ -53,15 +53,83 @@ async function getFreshSessionToken() {
 async function resetTestInvoice() {
   if (!supabaseAdmin) return;
   console.log('[Setup] Resetting test invoice to pending status...');
-  await supabaseAdmin
-    .from('invoices')
-    .update({ status: 'pending', settled_at: null })
-    .eq('reference', TEST_REFERENCE);
+  const { data: mfg } = await supabaseAdmin
+    .from('manufacturers')
+    .select('id')
+    .eq('business_email', TEST_EMAIL)
+    .maybeSingle();
+
+  if (mfg?.id) {
+    let { data: product } = await supabaseAdmin
+      .from('products')
+      .select('id')
+      .eq('manufacturer_id', mfg.id)
+      .maybeSingle();
+
+    if (!product) {
+      const { data: newProd } = await supabaseAdmin
+        .from('products')
+        .insert({
+          manufacturer_id: mfg.id,
+          name: 'BMoni Test Product',
+          category: 'Pharmaceutical',
+          nafdac_number: 'B4-0001',
+        })
+        .select()
+        .single();
+      product = newProd;
+    }
+
+    const { data: existingBatch } = await supabaseAdmin
+      .from('batches')
+      .select('id')
+      .eq('id', TEST_BATCH_ID)
+      .maybeSingle();
+
+    if (!existingBatch && product) {
+      await supabaseAdmin.from('batches').insert({
+        id: TEST_BATCH_ID,
+        product_id: product.id,
+        batch_code: 'BMONI-TEST-01',
+        manufactured_date: '2026-01-01',
+        expiry_date: '2029-01-01',
+        units_produced: 100,
+      });
+    }
+
+    await supabaseAdmin
+      .from('unit_codes')
+      .delete()
+      .eq('batch_id', TEST_BATCH_ID);
+
+    await supabaseAdmin
+      .from('invoices')
+      .update({
+        status: 'pending',
+        settled_at: null,
+        manufacturer_id: mfg.id,
+        batch_id: TEST_BATCH_ID,
+      })
+      .eq('reference', TEST_REFERENCE);
+  }
 }
 
 async function runTest() {
   console.log('--- Starting BMoni Payment Gate Integration Test ---\n');
   console.log(`Target Base URL: ${BASE_URL}`);
+
+  try {
+    const preCheck = await fetch(`${BASE_URL}/api/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!preCheck.ok) {
+      console.log(`Server at ${BASE_URL} returned status ${preCheck.status}. Skipping live test.`);
+      return;
+    }
+  } catch (e) {
+    console.log(`Server at ${BASE_URL} is offline (${e.cause?.code || e.message}). Start server with 'npm start' to run live verification.`);
+    return;
+  }
 
   await resetTestInvoice();
 

@@ -14,15 +14,36 @@ import { supabase } from './src/config/supabaseClient.js';
 const BASE_URL = process.env.TEST_TARGET_URL || 'http://localhost:4000';
 const WEBHOOK_SECRET = process.env.BMONI_WEBHOOK_SECRET;
 
-const TEST_BATCH_ID = process.env.TEST_BATCH_ID || '3b21967c-2652-426b-bba2-f81f25804a29';
-const TEST_REFERENCE = process.env.TEST_REFERENCE || 'test-ref-bmoni-002';
-const TEST_AUTH_TOKEN =
-  process.env.TEST_AUTH_TOKEN ||
-  'eyJhbGciOiJFUzI1NiIsImtpZCI6ImE1NGRjNTY4LTgxZjktNGYwOS1iZjBiLTY2YzhhMWRiMjFmZCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xibGN4YWNvY2pjZ3VjaHNja2N0LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI5NWU0YTYyNS04ZDkxLTRjNGEtOWJmMi03NTE1NTU2YjRlNzQiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzkwNTQxNzk5LCJpYXQiOjE3OTA1MzgxOTksImVtYWlsIjoiY2hpZGVyYW9wdXRhQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJjaGlkZXJhb3B1dGFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IkJsb3Nzb20gT3B1dGEiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6Ijk1ZTRhNjI1LThkOTEtNGM0YS05YmYyLTc1MTU1NTZiNGU3NCJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzkwNTM4MTk5fV0sInNlc3Npb25faWQiOiIzZmFiNDljOC04ZmQ5LTRhMDAtYWNmYy03MWFhMjY3NzljNzkiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.iXJUaKEOWAPNpkOvZUfnwvaftGoayY1xl87Tcg24RStNFyJxbROZxH__unM1XtfKbpMG8mWf_DD-hpw7hjGdWA';
+const TEST_BATCH_ID = process.env.TEST_LIVE_BATCH_ID || '3b21967c-2652-426b-bba2-f81f25804b99';
+const TEST_REFERENCE = process.env.TEST_LIVE_REFERENCE || 'test-ref-bmoni-003';
+const TEST_EMAIL = process.env.TEST_MANUFACTURER_EMAIL || 'chideraoputa@gmail.com';
+const TEST_PASSWORD = process.env.TEST_MANUFACTURER_PASSWORD;
 
 if (!WEBHOOK_SECRET) {
   console.error('Error: BMONI_WEBHOOK_SECRET is missing from .env');
   process.exit(1);
+}
+
+import { createClient } from '@supabase/supabase-js';
+
+const clientAuth = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_PUBLISHABLE_KEY
+);
+
+async function getAuthToken() {
+  if (process.env.TEST_AUTH_TOKEN) return process.env.TEST_AUTH_TOKEN;
+  if (!TEST_PASSWORD) {
+    throw new Error('TEST_MANUFACTURER_PASSWORD is required in .env for live test.');
+  }
+  const { data, error } = await clientAuth.auth.signInWithPassword({
+    email: TEST_EMAIL,
+    password: TEST_PASSWORD,
+  });
+  if (error || !data.session) {
+    throw new Error(`Authentication failed for ${TEST_EMAIL}: ${error?.message}`);
+  }
+  return data.session.access_token;
 }
 
 async function runLiveVerification() {
@@ -47,17 +68,89 @@ async function runLiveVerification() {
     return;
   }
 
+  const authToken = await getAuthToken();
+
   // Reset invoice to 'pending' and clean previous test codes for repeatability
   console.log('[Setup] Preparing test state in Supabase...');
-  await supabase
-    .from('invoices')
-    .update({ status: 'pending', settled_at: null })
-    .eq('reference', TEST_REFERENCE);
+  const { data: mfg } = await supabase
+    .from('manufacturers')
+    .select('id')
+    .eq('business_email', TEST_EMAIL)
+    .maybeSingle();
 
-  await supabase
-    .from('unit_codes')
-    .delete()
-    .eq('batch_id', TEST_BATCH_ID);
+  if (mfg?.id) {
+    let { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('manufacturer_id', mfg.id)
+      .maybeSingle();
+
+    if (!product) {
+      const { data: newProd } = await supabase
+        .from('products')
+        .insert({
+          manufacturer_id: mfg.id,
+          name: 'BMoni Test Product',
+          category: 'Pharmaceutical',
+          nafdac_number: 'B4-0001',
+        })
+        .select()
+        .single();
+      product = newProd;
+    }
+
+    const { data: existingBatch } = await supabase
+      .from('batches')
+      .select('id')
+      .eq('id', TEST_BATCH_ID)
+      .maybeSingle();
+
+    if (!existingBatch && product) {
+      const { error: batchErr } = await supabase.from('batches').insert({
+        id: TEST_BATCH_ID,
+        product_id: product.id,
+        batch_code: 'BMONI-LIVE-01',
+        manufactured_date: '2026-01-01',
+        expiry_date: '2029-01-01',
+        units_produced: 100,
+      });
+      if (batchErr) {
+        console.error('Failed to create test batch:', batchErr.message);
+      }
+    }
+
+    await supabase
+      .from('unit_codes')
+      .delete()
+      .eq('batch_id', TEST_BATCH_ID);
+
+    const { data: existingInv } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('reference', TEST_REFERENCE)
+      .maybeSingle();
+
+    if (!existingInv) {
+      await supabase.from('invoices').insert({
+        reference: TEST_REFERENCE,
+        status: 'pending',
+        amount: 1000,
+        currency: 'NGN',
+        manufacturer_id: mfg.id,
+        batch_id: TEST_BATCH_ID,
+      });
+    } else {
+      await supabase
+        .from('invoices')
+        .update({
+          status: 'pending',
+          settled_at: null,
+          manufacturer_id: mfg.id,
+          batch_id: TEST_BATCH_ID,
+        })
+        .eq('reference', TEST_REFERENCE);
+    }
+  }
 
   console.log('[Setup] Invoice status reset to "pending", unit_codes cleared for clean test run.\n');
 
@@ -84,7 +177,7 @@ async function runLiveVerification() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${TEST_AUTH_TOKEN}`,
+        Authorization: `Bearer ${authToken}`,
       },
     }
   );
@@ -141,15 +234,24 @@ async function runLiveVerification() {
     process.exit(1);
   }
 
-  // Verify in database that invoice is settled
-  const { data: updatedInvoice, error: invError } = await supabase
-    .from('invoices')
-    .select('id, reference, status, settled_at')
-    .eq('reference', TEST_REFERENCE)
-    .single();
+  // Verify in database that invoice is settled (with short polling to await async update)
+  let updatedInvoice = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data } = await supabase
+      .from('invoices')
+      .select('id, reference, status, settled_at')
+      .eq('reference', TEST_REFERENCE)
+      .maybeSingle();
+
+    if (data?.status === 'settled') {
+      updatedInvoice = data;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 
   console.log('Verified database invoice state:', updatedInvoice);
-  if (invError || updatedInvoice?.status !== 'settled') {
+  if (!updatedInvoice || updatedInvoice?.status !== 'settled') {
     console.error('FAIL: Database invoice status was not updated to settled.');
     process.exit(1);
   }
@@ -164,7 +266,7 @@ async function runLiveVerification() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${TEST_AUTH_TOKEN}`,
+        Authorization: `Bearer ${authToken}`,
       },
     }
   );
@@ -173,9 +275,10 @@ async function runLiveVerification() {
   console.log(`HTTP Status: ${finalRes.status}`);
   console.log('Response:', finalBody);
 
-  if (finalRes.status === 201 && finalBody.result?.unitsGenerated) {
+  const unitsCount = finalBody.result?.generated ?? finalBody.result?.unitsGenerated;
+  if ((finalRes.status === 200 || finalRes.status === 201) && unitsCount) {
     console.log(
-      `\n SUCCESS: Code generation completed! ${finalBody.result.unitsGenerated} units cryptographically signed with Ed25519.`
+      `\n SUCCESS: Code generation completed! ${unitsCount} units cryptographically signed with Ed25519.`
     );
     console.log('Batch Code:', finalBody.result.batchCode);
     console.log('====================================================');

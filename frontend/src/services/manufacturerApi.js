@@ -56,7 +56,7 @@ async function authenticatedFetch(path, options = {}) {
     ...options,
     headers: { ...headers, ...(options.headers || {}) },
   });
-  
+
   const body = options.expectBlob ? null : await readJson(response);
   if (!response.ok) {
     const errorBody = body || await readJson(response);
@@ -161,7 +161,6 @@ export async function downloadBatchExport(batchId, format) {
   URL.revokeObjectURL(url);
 }
 
-// Request dynamic Nigerian Virtual Bank Account from BMoni Layer 2
 export async function requestBatchVba(batchId, amount, signal) {
   const { body } = await authenticatedFetch('/api/manufacturer/vba', {
     method: 'POST',

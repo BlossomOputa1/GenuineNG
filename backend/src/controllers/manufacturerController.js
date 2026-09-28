@@ -4,6 +4,7 @@ import { createBatch, getBatchesForManufacturer } from '../services/batchService
 import { generateNextCodeChunk, getGenerationStatus } from '../services/codeGenerationService.js';
 import { getScanActivity } from '../services/scanActivityService.js';
 import { sendCsvExport, sendManifestExport, streamQrZipExport } from '../services/exportService.js';
+import { supabase as supabaseAdmin } from '../config/supabaseClient.js';
 
 function handleKnownError(err, res, next) {
   if (err.statusCode) {
@@ -79,7 +80,8 @@ export async function generateCodesController(req, res, next) {
     }
 
     // Check payment gate
-    const { data: invoice, error: invoiceError } = await req.supabase
+    const client = supabaseAdmin || req.supabase;
+    const { data: invoice, error: invoiceError } = await client
       .from('invoices')
       .select('id, status, amount, currency, settled_at')
       .eq('batch_id', batchId)

@@ -138,7 +138,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Layer 1 routes
-app.use('/api', apiLimiter, extractLabelRouter);
+app.use('/api/extract-label', apiLimiter, extractLabelRouter);
 app.use('/api/label-checks', apiLimiter, labelChecksRouter);
 app.use('/api/scans', scansRouter);
 if (process.env.MANUFACTURER_PORTAL_ENABLED !== 'false') {
@@ -179,6 +179,6 @@ app.use((err, req, res, next) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () =>
+const server = app.listen(PORT, () =>
   console.log(`GenuineNG backend running on port ${PORT}`)
 );

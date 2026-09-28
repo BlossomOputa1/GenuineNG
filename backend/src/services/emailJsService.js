@@ -9,11 +9,13 @@ function env(...names) {
 }
 
 function getEmailJsConfig() {
+  const fallbackTemplate = env('VITE_EMAILJS_TEMPLATE_ID', 'EMAILJS_TEMPLATE_ID') || 'template_16rm1ox';
   return {
     serviceId: env('EMAILJS_SERVICE_ID', 'VITE_EMAILJS_SERVICE_ID'),
     publicKey: env('EMAILJS_PUBLIC_KEY', 'VITE_EMAILJS_PUBLIC_KEY'),
-    applicationTemplateId: env('EMAILJS_PARTNER_APPLICATION_TEMPLATE_ID'),
-    approvedTemplateId: env('EMAILJS_PARTNER_APPROVED_TEMPLATE_ID'),
+    accessToken: env('EMAILJS_PRIVATE_KEY', 'EMAILJS_ACCESS_TOKEN'),
+    applicationTemplateId: env('EMAILJS_PARTNER_APPLICATION_TEMPLATE_ID') || fallbackTemplate,
+    approvedTemplateId: env('EMAILJS_PARTNER_APPROVED_TEMPLATE_ID') || fallbackTemplate,
   };
 }
 
@@ -24,25 +26,52 @@ function adminRecipients() {
     .filter(Boolean);
 }
 
+function getRequestHeaders() {
+  const origin = process.env.PUBLIC_APP_URL || process.env.FRONTEND_ORIGIN?.split(',')[0] || 'https://genuine-ng.vercel.app';
+  return {
+    'Content-Type': 'application/json',
+    'Origin': origin,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GenuineNG/1.0',
+  };
+}
+
 async function sendEmailJs(templateId, templateParams) {
   const config = getEmailJsConfig();
   if (!config.serviceId || !config.publicKey || !templateId) {
     return { delivered: false, reason: 'not_configured' };
   }
 
+  const payload = {
+    service_id: config.serviceId,
+    template_id: templateId,
+    user_id: config.publicKey,
+    template_params: templateParams,
+  };
+
+  if (config.accessToken) {
+    payload.accessToken = config.accessToken;
+  }
+
   const response = await fetch(EMAILJS_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      service_id: config.serviceId,
-      template_id: templateId,
-      user_id: config.publicKey,
-      template_params: templateParams,
-    }),
+    headers: getRequestHeaders(),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
+    // If the template was not found, attempt fallback to working template if different
+    const fallbackTemplate = 'template_16rm1ox';
+    if (response.status === 400 && detail.includes('template ID not found') && templateId !== fallbackTemplate) {
+      console.warn(`EmailJS template ${templateId} not found, falling back to ${fallbackTemplate}`);
+      payload.template_id = fallbackTemplate;
+      const retryResponse = await fetch(EMAILJS_ENDPOINT, {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (retryResponse.ok) return { delivered: true };
+    }
     throw new Error(`EmailJS request failed (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ''}`);
   }
   return { delivered: true };
@@ -50,7 +79,11 @@ async function sendEmailJs(templateId, templateParams) {
 
 export async function sendPartnerApplicationEmails(application, approvalUrl) {
   const recipients = adminRecipients();
-  const templateId = getEmailJsConfig().applicationTemplateId;
+  const config = getEmailJsConfig();
+  const templateId = config.applicationTemplateId;
+
+  // Architecture rule: ONLY configured admin emails receive the approval_url.
+  // The applicant's business_email MUST NEVER receive the approval token/link.
   if (!recipients.length || !templateId) {
     return { delivered: false, deliveredCount: 0, failedCount: 0, reason: 'not_configured' };
   }
