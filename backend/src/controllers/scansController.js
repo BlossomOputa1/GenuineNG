@@ -87,22 +87,38 @@ export async function getScan(req, res) {
 export async function createScan(req, res) {
   if (!requireRequestContext(req, res)) return;
   try {
-    const { valid, errors } = validateScanInput(req.body);
+    const body = req.body || {};
+
+    // 1. Normalize checks FIRST so validator receives valid properties
+    const rawChecks = Array.isArray(body.checks) ? body.checks : [];
+    const normalizedChecks = rawChecks.map((check) => {
+      const checkType = check.check_type ?? check.check_key;
+      const checkOutcome = check.outcome ?? check.status;
+      return {
+        // Provide both naming schemes to satisfy validator requirements
+        check_key: checkType,
+        check_type: checkType,
+        status: checkOutcome,
+        outcome: checkOutcome,
+        reason: check.reason || '',
+        source: check.source ?? check.source_name ?? null,
+        checked_at: check.checked_at ?? check.source_last_checked_at ?? null,
+      };
+    });
+
+    // 2. Validate input using the normalized payload
+    const { valid, errors } = validateScanInput({
+      ...body,
+      checks: normalizedChecks,
+    });
+
     if (!valid) {
       return res.status(400).json({
         error: { code: 'INVALID_INPUT', message: errors.join(' ') },
       });
     }
 
-    const body = req.body;
-    const checks = (body.checks || []).map((check) => ({
-      check_key: check.check_key ?? check.check_type,
-      status: check.status ?? check.outcome,
-      reason: check.reason || '',
-      source: check.source ?? check.source_name ?? null,
-      checked_at: check.checked_at ?? check.source_last_checked_at ?? null,
-    }));
-
+    // 3. Prepare payload for the database RPC
     const scan = {
       product_name: body.product_name ?? null,
       manufacturer_text: body.manufacturer_text ?? body.manufacturer ?? null,
@@ -114,11 +130,19 @@ export async function createScan(req, res) {
       checked_at: body.checked_at ?? null,
     };
 
+    const rpcChecks = normalizedChecks.map((c) => ({
+      check_key: c.check_key,
+      status: c.status,
+      reason: c.reason,
+      source: c.source,
+      checked_at: c.checked_at,
+    }));
+
     const { data, error } = await req.supabase.rpc('save_label_scan', {
       p_session_id: body.session_id ?? body.sessionId ?? null,
       p_title: body.title ?? body.product_name ?? 'New product check',
       p_scan: scan,
-      p_checks: checks,
+      p_checks: rpcChecks,
       p_existing_scan_id: body.existing_scan_id ?? null,
     });
 
@@ -132,7 +156,7 @@ export async function createScan(req, res) {
       throw error;
     }
 
-    return res.status(201).json({ id: data.scanId, session_id: data.sessionId });
+    return res.status(201).json({ id: data?.scanId, session_id: data?.sessionId });
   } catch (error) {
     console.error('Failed to save scan atomically:', error);
     return res.status(500).json({
