@@ -14,6 +14,7 @@ import {
 } from '../controllers/manufacturerController.js';
 import bmoniClient from '../services/bmoniClient.js';
 import { supabase } from '../config/supabaseClient.js';
+import { createBatchSmartWallet } from '../services/bmoniService.js';
 
 const router = express.Router();
 router.use(authMiddleware, manufacturerAuthMiddleware);
