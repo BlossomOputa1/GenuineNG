@@ -10,6 +10,7 @@ import {
 import {
   sendPartnerApplicationEmails,
   sendPartnerApprovedEmail,
+  getEmailJsStatus,
 } from '../services/emailJsService.js';
 
 function apiError(res, status, code, message, details) {
@@ -70,12 +71,134 @@ export async function submitPartnerApplication(req, res, next) {
       emailDelivery = await sendPartnerApplicationEmails(application, approvalUrl);
     } catch (emailError) {
       console.error('Partner application EmailJS delivery failed:', emailError?.message || emailError);
+      emailDelivery = { delivered: false, deliveredCount: 0, failedCount: 0, reason: 'send_failed' };
     }
 
     return res.status(201).json({
       application: { id: application.id, status: application.status, submittedAt: application.created_at },
       notificationQueued: true,
       adminEmailDelivered: Boolean(emailDelivery.delivered),
+      email: {
+        delivered: Boolean(emailDelivery.delivered),
+        deliveredCount: emailDelivery.deliveredCount || 0,
+        failedCount: emailDelivery.failedCount || 0,
+        reason: emailDelivery.reason || 'send_failed',
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPartnerEmailStatus(req, res) {
+  return res.json({ email: getEmailJsStatus(), admin: req.partnerAdminEmail || null });
+}
+
+export async function listPendingPartnerApplications(req, res, next) {
+  try {
+    const rawLimit = Number.parseInt(String(req.query.limit || '50'), 10);
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 50;
+    const { data, error } = await supabase
+      .from('manufacturer_applications')
+      .select('id, company_name, contact_person_name, business_email, phone_number, status, created_at, approval_token_expires_at, approval_token_used_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return res.json({
+      applications: (data || []).map((row) => ({
+        id: row.id,
+        companyName: row.company_name,
+        contactPersonName: row.contact_person_name,
+        businessEmail: row.business_email,
+        phoneNumber: row.phone_number,
+        status: row.status,
+        submittedAt: row.created_at,
+        expiresAt: row.approval_token_expires_at,
+        used: Boolean(row.approval_token_used_at),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rejectPartnerApplication(req, res, next) {
+  try {
+    const token = normalizeToken(req.body?.token);
+    if (!token) return apiError(res, 400, 'INVALID_APPROVAL_LINK', 'This approval link is invalid.');
+    const { application } = await findApplicationByToken(token);
+    if (!application) return apiError(res, 404, 'APPLICATION_NOT_FOUND', 'This partner application could not be found.');
+    if (application.status !== 'pending') {
+      return apiError(res, 409, 'APPLICATION_NOT_PENDING', `This application is already ${application.status}.`);
+    }
+    const { error } = await supabase
+      .from('manufacturer_applications')
+      .update({ status: 'rejected', reviewed_at: new Date().toISOString(), approval_token_used_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', application.id)
+      .eq('status', 'pending');
+    if (error) throw error;
+    return res.json({
+      rejected: true,
+      application: {
+        id: application.id,
+        companyName: application.company_name,
+        businessEmail: application.business_email,
+      },
+      rejectedBy: req.partnerAdminEmail,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resendPartnerApplication(req, res, next) {
+  try {
+    const applicationId = typeof req.body?.applicationId === 'string' ? req.body.applicationId.trim() : '';
+    if (!applicationId) return apiError(res, 400, 'INVALID_INPUT', 'applicationId is required.');
+    const { data: existing, error: fetchError } = await supabase
+      .from('manufacturer_applications')
+      .select('id, company_name, contact_person_name, business_email, phone_number, status, created_at')
+      .eq('id', applicationId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) return apiError(res, 404, 'APPLICATION_NOT_FOUND', 'This partner application could not be found.');
+    if (existing.status !== 'pending') {
+      return apiError(res, 409, 'APPLICATION_NOT_PENDING', `This application is already ${existing.status}.`);
+    }
+    const approvalToken = generatePartnerApprovalToken();
+    const approvalTokenHash = hashPartnerApprovalToken(approvalToken);
+    const approvalTokenExpiresAt = getPartnerApprovalExpiry();
+    const { data: updated, error: updateError } = await supabase
+      .from('manufacturer_applications')
+      .update({
+        approval_token_hash: approvalTokenHash,
+        approval_token_expires_at: approvalTokenExpiresAt,
+        approval_token_used_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select('id, company_name, contact_person_name, business_email, phone_number, status, created_at')
+      .single();
+    if (updateError) throw updateError;
+    const approvalUrl = buildPartnerApprovalUrl(approvalToken);
+    let emailDelivery = { delivered: false, deliveredCount: 0, failedCount: 0, reason: 'send_failed' };
+    try {
+      emailDelivery = await sendPartnerApplicationEmails(updated, approvalUrl);
+    } catch (emailError) {
+      console.error('Partner application resend EmailJS delivery failed:', emailError?.message || emailError);
+    }
+    return res.json({
+      resent: true,
+      application: { id: updated.id, status: updated.status },
+      approvalUrl,
+      email: {
+        delivered: Boolean(emailDelivery.delivered),
+        deliveredCount: emailDelivery.deliveredCount || 0,
+        failedCount: emailDelivery.failedCount || 0,
+        reason: emailDelivery.reason || 'send_failed',
+      },
+      resentBy: req.partnerAdminEmail,
     });
   } catch (err) {
     next(err);
@@ -168,6 +291,12 @@ export async function approvePartnerApplication(req, res, next) {
       if (message.includes('APPROVAL_TOKEN_EXPIRED')) {
         return apiError(res, 410, 'APPROVAL_LINK_EXPIRED', 'This approval link has expired.');
       }
+      if (message.includes('APPROVAL_TOKEN_USED')) {
+        return apiError(res, 409, 'APPROVAL_LINK_USED', 'This approval link has already been used.');
+      }
+      if (message.includes('APPROVAL_TOKEN_INVALID')) {
+        return apiError(res, 404, 'APPLICATION_NOT_FOUND', 'This partner application could not be found.');
+      }
       if (message.includes('APPLICATION_NOT_PENDING')) {
         return apiError(res, 409, 'APPLICATION_NOT_PENDING', 'This application is no longer pending.');
       }
@@ -180,12 +309,18 @@ export async function approvePartnerApplication(req, res, next) {
     }
 
     const manufacturerPortalUrl = `${getPublicAppUrl()}/manufacturer`;
-    const emailDelivery = await sendPartnerApprovedEmail({
-      businessEmail: approved.business_email,
-      contactPersonName: approved.contact_person_name,
-      companyName: approved.company_name,
-      manufacturerPortalUrl,
-    });
+    let emailDelivery = { delivered: false, reason: 'send_failed' };
+    try {
+      emailDelivery = await sendPartnerApprovedEmail({
+        businessEmail: approved.business_email,
+        contactPersonName: approved.contact_person_name,
+        companyName: approved.company_name,
+        manufacturerPortalUrl,
+      });
+    } catch (emailError) {
+      console.error('Partner approval EmailJS delivery failed:', emailError?.message || emailError);
+      emailDelivery = { delivered: false, reason: 'send_failed' };
+    }
 
     return res.json({
       approved: true,

@@ -70,11 +70,11 @@ async function sendEmailJs(templateId, templateParams) {
         headers: getRequestHeaders(),
         body: JSON.stringify(payload),
       });
-      if (retryResponse.ok) return { delivered: true };
+      if (retryResponse.ok) return { delivered: true, reason: 'fallback_template' };
     }
     throw new Error(`EmailJS request failed (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ''}`);
   }
-  return { delivered: true };
+  return { delivered: true, reason: 'ok' };
 }
 
 export async function sendPartnerApplicationEmails(application, approvalUrl) {
@@ -105,10 +105,18 @@ export async function sendPartnerApplicationEmails(application, approvalUrl) {
   for (const result of failed) {
     console.error('Partner application EmailJS notification failed:', result.reason?.message || result.reason);
   }
+  const usedFallback = results.some(
+    (result) => result.status === 'fulfilled' && result.value?.reason === 'fallback_template',
+  );
+  let reason = 'ok';
+  if (deliveredCount === 0) reason = 'send_failed';
+  else if (failed.length > 0) reason = 'partial';
+  else if (usedFallback) reason = 'fallback_template';
   return {
     delivered: deliveredCount > 0,
     deliveredCount,
     failedCount: failed.length,
+    reason,
   };
 }
 
@@ -132,4 +140,45 @@ export async function sendPartnerApprovedEmail({ businessEmail, contactPersonNam
 
 export function getConfiguredPartnerAdminEmails() {
   return adminRecipients();
+}
+
+export function getEmailJsStatus() {
+  const config = getEmailJsConfig();
+  const admins = adminRecipients();
+  const applicationTemplateExplicit = Boolean(
+    String(process.env.EMAILJS_PARTNER_APPLICATION_TEMPLATE_ID || '').trim(),
+  );
+  const approvedTemplateExplicit = Boolean(
+    String(process.env.EMAILJS_PARTNER_APPROVED_TEMPLATE_ID || '').trim(),
+  );
+  return {
+    configured: Boolean(config.serviceId && config.publicKey && admins.length && config.applicationTemplateId),
+    serviceConfigured: Boolean(config.serviceId && config.publicKey),
+    accessTokenConfigured: Boolean(config.accessToken),
+    adminCount: admins.length,
+    applicationTemplateConfigured: Boolean(config.applicationTemplateId),
+    approvedTemplateConfigured: Boolean(config.approvedTemplateId),
+    usingSharedFallbackTemplate:
+      !applicationTemplateExplicit || !approvedTemplateExplicit,
+    publicAppUrl: String(process.env.PUBLIC_APP_URL || '').trim(),
+  };
+}
+
+export function logEmailJsConfigWarnings() {
+  const status = getEmailJsStatus();
+  if (!status.adminCount) {
+    console.warn('EmailJS warning: PARTNER_ADMIN_EMAILS is empty — partner applications will save but no admin email will be sent.');
+  }
+  if (!status.serviceConfigured) {
+    console.warn('EmailJS warning: EMAILJS_SERVICE_ID / EMAILJS_PUBLIC_KEY missing — email delivery disabled (reason: not_configured).');
+  }
+  if (!status.accessTokenConfigured) {
+    console.warn('EmailJS warning: EMAILJS_PRIVATE_KEY (or EMAILJS_ACCESS_TOKEN) missing — server-side sends may be rejected with 401/403.');
+  }
+  if (status.usingSharedFallbackTemplate) {
+    console.warn('EmailJS warning: EMAILJS_PARTNER_APPLICATION_TEMPLATE_ID / EMAILJS_PARTNER_APPROVED_TEMPLATE_ID not both set — application and approval emails share one fallback template and may render wrong params.');
+  }
+  if (!status.publicAppUrl) {
+    console.warn('EmailJS warning: PUBLIC_APP_URL missing — approval links fall back to FRONTEND_ORIGIN or localhost; set one canonical URL.');
+  }
 }
