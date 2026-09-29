@@ -160,6 +160,25 @@ export async function downloadBatchExport(batchId, format) {
   link.remove();
   URL.revokeObjectURL(url);
 }
+// Add to frontend/src/services/manufacturerApi.js
+
+export async function linkBmoniAccount({ phoneNumber, bmoniTag }) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE_URL}/api/manufacturer/link-bmoni`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ phoneNumber, bmoniTag }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.error?.message || 'Failed to link BMoni account.');
+  }
+  return body;
+}
 
 export async function requestBatchVba(batchId, amount, signal) {
   const { body } = await authenticatedFetch('/api/manufacturer/vba', {

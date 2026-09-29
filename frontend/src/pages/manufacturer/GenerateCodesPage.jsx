@@ -328,6 +328,19 @@ export default function GenerateCodesPage() {
         error={error}
         vbaDetails={vbaDetails}
         settled={paymentSettled}
+        onManualVerify={async () => {
+          // Immediately check if Supabase invoice has settled
+          if (!vbaDetails?.reference) return;
+          const { data } = await supabase
+            .from('invoices')
+            .select('status')
+            .eq('reference', vbaDetails.reference)
+            .maybeSingle();
+
+          if (data?.status === 'settled') {
+            handleSettlementSuccess();
+          }
+        }}
       />
     </div>
   );
