@@ -27,6 +27,9 @@ router.post('/batches/:id/generate-codes', generateCodesController);
 router.get('/scan-activity', scanActivityController);
 router.get('/batches/:id/export', exportBatchController);
 
+
+
+
 /**
  * POST /api/manufacturer/vba
  * Generates a dedicated Nigerian Virtual Bank Account to fund code generation.
@@ -91,6 +94,63 @@ router.post('/vba', async (req, res) => {
         code: 'BMONI_VBA_FAILED',
         message: err.message || 'Failed to generate Virtual Bank Account rail.',
       },
+    });
+  }
+});
+
+/**
+ * POST /api/manufacturer/sandbox-settle
+ * Instantly marks a test invoice as settled so demo/sandbox runs can proceed without external webhooks.
+ */
+router.post('/sandbox-settle', async (req, res) => {
+  try {
+    const { reference } = req.body;
+
+    if (!reference) {
+      return res.status(400).json({
+        error: { code: 'INVALID_REFERENCE', message: 'Invoice reference is required.' },
+      });
+    }
+
+    // Verify invoice belongs to the requesting manufacturer
+    const { data: invoice, error: findError } = await supabase
+      .from('invoices')
+      .select('id, batch_id, status')
+      .eq('reference', reference)
+      .eq('manufacturer_id', req.manufacturer.id)
+      .maybeSingle();
+
+    if (findError || !invoice) {
+      return res.status(404).json({
+        error: { code: 'INVOICE_NOT_FOUND', message: 'No matching test invoice found.' },
+      });
+    }
+
+    // Update status to settled
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({
+        status: 'settled',
+        settled_at: new Date().toISOString(),
+      })
+      .eq('id', invoice.id);
+
+    if (updateError) {
+      return res.status(500).json({
+        error: { code: 'DB_ERROR', message: updateError.message },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sandbox payment verified and settled successfully.',
+      invoiceId: invoice.id,
+      batchId: invoice.batch_id,
+    });
+  } catch (err) {
+    console.error('[Sandbox Settle Error]:', err.message);
+    return res.status(500).json({
+      error: { code: 'SETTLE_FAILED', message: err.message },
     });
   }
 });

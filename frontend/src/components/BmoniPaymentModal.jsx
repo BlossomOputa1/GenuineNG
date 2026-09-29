@@ -182,7 +182,7 @@ export default function BmoniPaymentModal({
               </span>
               <div className="flex gap-2">
                 <a
-                  href="https://play.google.com/store/apps"
+                  href="https://play.google.com/store/apps/details?id=com.bmoni.app"
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 text-center py-1.5 px-3 rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-300 text-[11px] hover:bg-emerald-900 transition"
@@ -190,7 +190,7 @@ export default function BmoniPaymentModal({
                   Google Play Store ↗
                 </a>
                 <a
-                  href="https://apps.apple.com"
+                  href="https://apps.apple.com/us/app/bmoni-by-bkey/id6751323804"
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 text-center py-1.5 px-3 rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-300 text-[11px] hover:bg-emerald-900 transition"

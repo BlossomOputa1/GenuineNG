@@ -8,6 +8,7 @@ import {
   getBatches,
   requestBatchVba,
   ApiError,
+  sandboxSettleInvoice,
 } from '../../services/manufacturerApi';
 
 const formatNumber = (value) => new Intl.NumberFormat('en-NG').format(value || 0);
@@ -329,16 +330,14 @@ export default function GenerateCodesPage() {
         vbaDetails={vbaDetails}
         settled={paymentSettled}
         onManualVerify={async () => {
-          // Immediately check if Supabase invoice has settled
           if (!vbaDetails?.reference) return;
-          const { data } = await supabase
-            .from('invoices')
-            .select('status')
-            .eq('reference', vbaDetails.reference)
-            .maybeSingle();
-
-          if (data?.status === 'settled') {
-            handleSettlementSuccess();
+          try {
+            // Instantly settle the test invoice in Supabase
+            await sandboxSettleInvoice(vbaDetails.reference);
+            // Trigger UI settlement check & code generation
+            await handleSettlementSuccess();
+          } catch (err) {
+            setError(err.message || 'Settlement verification failed.');
           }
         }}
       />

@@ -180,6 +180,24 @@ export async function linkBmoniAccount({ phoneNumber, bmoniTag }) {
   return body;
 }
 
+export async function sandboxSettleInvoice(reference) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE_URL}/api/manufacturer/sandbox-settle`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reference }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.error?.message || 'Could not verify test settlement.');
+  }
+  return body;
+}
+
 export async function requestBatchVba(batchId, amount, signal) {
   const { body } = await authenticatedFetch('/api/manufacturer/vba', {
     method: 'POST',
