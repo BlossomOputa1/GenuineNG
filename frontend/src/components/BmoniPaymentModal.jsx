@@ -140,7 +140,7 @@ export default function BmoniPaymentModal({
               <div className="flex justify-between items-center text-xs">
                 <span className="text-emerald-400/70 font-sans">Account Name:</span>
                 <span className="text-white truncate max-w-[240px]">
-                  {vbaDetails?.accountName || 'GenuineNG / Manufacturer'}
+                  {vbaDetails?.accountName || 'GenuineNG'}
                 </span>
               </div>
 

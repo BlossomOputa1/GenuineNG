@@ -181,7 +181,10 @@ export async function linkBmoniAccount({ phoneNumber, bmoniTag }) {
 }
 
 export async function sandboxSettleInvoice(reference) {
-  const token = localStorage.getItem('token');
+  // Retrieve token directly from the active Supabase session
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || localStorage.getItem('token');
+
   const res = await fetch(`${API_BASE_URL}/api/manufacturer/sandbox-settle`, {
     method: 'POST',
     headers: {
