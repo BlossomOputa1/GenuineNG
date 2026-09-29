@@ -14,6 +14,9 @@ import bmoniRouter from './routes/bmoni.js'; // Layer 2 BMoni routes (VBA, offra
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import partnerApplicationsRouter from './routes/partnerApplications.js';
+import { logEmailJsConfigWarnings } from './services/emailJsService.js';
+
+logEmailJsConfigWarnings();
 
 // BMoni sandbox default
 process.env.BMONI_BASE_URL =
