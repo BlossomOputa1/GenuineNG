@@ -9,13 +9,17 @@ function env(...names) {
 }
 
 function getEmailJsConfig() {
-  const fallbackTemplate = env('VITE_EMAILJS_TEMPLATE_ID', 'EMAILJS_TEMPLATE_ID') || 'template_16rm1ox';
+  // NOTE: no hardcoded fallback template. Sending partner approval data
+  // through an unrelated template (e.g. a password-reset template) makes
+  // the admin receive the WRONG email while delivery reports success.
+  // Missing template IDs must fail loudly with reason 'not_configured'.
+  const legacyTemplate = env('VITE_EMAILJS_TEMPLATE_ID', 'EMAILJS_TEMPLATE_ID');
   return {
     serviceId: env('EMAILJS_SERVICE_ID', 'VITE_EMAILJS_SERVICE_ID'),
     publicKey: env('EMAILJS_PUBLIC_KEY', 'VITE_EMAILJS_PUBLIC_KEY'),
     accessToken: env('EMAILJS_PRIVATE_KEY', 'EMAILJS_ACCESS_TOKEN'),
-    applicationTemplateId: env('EMAILJS_PARTNER_APPLICATION_TEMPLATE_ID') || fallbackTemplate,
-    approvedTemplateId: env('EMAILJS_PARTNER_APPROVED_TEMPLATE_ID') || fallbackTemplate,
+    applicationTemplateId: env('EMAILJS_PARTNER_APPLICATION_TEMPLATE_ID') || legacyTemplate,
+    approvedTemplateId: env('EMAILJS_PARTNER_APPROVED_TEMPLATE_ID') || legacyTemplate,
   };
 }
 
@@ -60,18 +64,9 @@ async function sendEmailJs(templateId, templateParams) {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    // If the template was not found, attempt fallback to working template if different
-    const fallbackTemplate = 'template_16rm1ox';
-    if (response.status === 400 && detail.includes('template ID not found') && templateId !== fallbackTemplate) {
-      console.warn(`EmailJS template ${templateId} not found, falling back to ${fallbackTemplate}`);
-      payload.template_id = fallbackTemplate;
-      const retryResponse = await fetch(EMAILJS_ENDPOINT, {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        body: JSON.stringify(payload),
-      });
-      if (retryResponse.ok) return { delivered: true, reason: 'fallback_template' };
-    }
+    // Do NOT retry with a different template here: delivering partner
+    // approval data through an unrelated template sends the admin the
+    // wrong email (e.g. a password-reset message) while reporting success.
     throw new Error(`EmailJS request failed (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ''}`);
   }
   return { delivered: true, reason: 'ok' };
@@ -105,13 +100,9 @@ export async function sendPartnerApplicationEmails(application, approvalUrl) {
   for (const result of failed) {
     console.error('Partner application EmailJS notification failed:', result.reason?.message || result.reason);
   }
-  const usedFallback = results.some(
-    (result) => result.status === 'fulfilled' && result.value?.reason === 'fallback_template',
-  );
   let reason = 'ok';
   if (deliveredCount === 0) reason = 'send_failed';
   else if (failed.length > 0) reason = 'partial';
-  else if (usedFallback) reason = 'fallback_template';
   return {
     delivered: deliveredCount > 0,
     deliveredCount,
