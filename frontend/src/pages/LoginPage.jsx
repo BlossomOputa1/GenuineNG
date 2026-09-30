@@ -232,6 +232,32 @@ export default function LoginPage({ session, navigate }) {
                 </div>
               </div>
 
+              <p className="auth-legal-note">
+                {mode === "signup"
+                  ? "By creating your account, you agree to our "
+                  : "By continuing, you agree to our "}
+                <a
+                  href="/privacy"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate("/privacy");
+                  }}
+                >
+                  Privacy Policy
+                </a>{" "}
+                and{" "}
+                <a
+                  href="/terms"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate("/terms");
+                  }}
+                >
+                  Terms of Service
+                </a>
+                .
+              </p>
+
               {error && (
                 <div className="inline-notice form-error" role="alert">
                   <Icon name="warning" />

@@ -10753,3 +10753,420 @@ body {
 .manufacturer-dialog .manufacturer-form-grid select {
   margin: 0;
 }
+
+/* ===== Login consent note (under inputs, above submit) ===== */
+.auth-legal-note {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+  color: #54635b;
+}
+.auth-legal-note a {
+  color: var(--reference-deep-green, #1b3d2c);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 6px 2px;
+}
+
+/* ===== Legal pages (privacy / terms) — same card language as placeholders ===== */
+.legal-page {
+  align-items: start;
+}
+.legal-card {
+  text-align: left;
+  width: min(760px, 100%);
+}
+.legal-card > .placeholder-icon,
+.legal-card > .eyebrow,
+.legal-card > h1,
+.legal-card > .legal-updated {
+  text-align: center;
+}
+.legal-card > h1 {
+  font-size: clamp(1.9rem, 4.6vw, 3rem);
+}
+.legal-updated {
+  margin: 0 auto 20px;
+  font-size: 0.82rem;
+  color: #54635b;
+}
+.legal-body {
+  display: grid;
+  gap: 14px;
+  text-align: left;
+}
+.legal-body h2 {
+  margin: 10px 0 -4px;
+  font-size: 1.02rem;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.legal-body p,
+.legal-body li {
+  line-height: 1.75;
+  color: #3d4a43;
+  font-size: 0.94rem;
+}
+.legal-body p {
+  margin: 0;
+}
+.legal-body ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.legal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 26px;
+}
+
+@media (max-width: 680px) {
+  .legal-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== Contact page — same language as partner application ===== */
+.contact-email-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 460px;
+  padding: 16px 18px;
+  border: 1px solid rgba(22, 61, 34, 0.12);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(22, 61, 34, 0.08);
+}
+.contact-email-card > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.contact-email-card strong {
+  overflow-wrap: anywhere;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.contact-email-card small {
+  color: rgba(22, 61, 34, 0.62);
+  font-size: 0.82rem;
+}
+.contact-email-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--reference-lime, #a9e356);
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.contact-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.contact-card-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-card select,
+.contact-card textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 61, 34, 0.18);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  color: var(--reference-deep-green);
+}
+.contact-card textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.contact-form-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+  color: #54635b;
+}
+
+@media (max-width: 800px) {
+  .contact-card-actions .button {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+}
+
+/* ===== About page — same language as hero / reason / placeholder ===== */
+.about-page {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 72px 0 96px;
+  display: grid;
+  gap: 72px;
+}
+.about-hero {
+  display: grid;
+  gap: 18px;
+  max-width: 780px;
+}
+.about-hero h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+  font-family: var(--heading);
+}
+.about-lead {
+  margin: 0;
+  max-width: 700px;
+  color: rgba(22, 61, 34, 0.72);
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+.about-hero-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.about-hero-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.about-section {
+  display: grid;
+  gap: 26px;
+}
+.about-section-head {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+}
+.about-section-head h2 {
+  margin: 0;
+  font-family: var(--heading);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.about-section-head p {
+  margin: 0;
+  color: #3d4a43;
+  line-height: 1.75;
+  font-size: 0.98rem;
+}
+.about-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.about-card {
+  padding: 28px;
+  border: 1px solid var(--line, #ccd6ce);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.72);
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.about-card h3,
+.about-steps h3,
+.about-meanings h3 {
+  margin: 0;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.about-card p,
+.about-steps p,
+.about-meanings p {
+  margin: 0;
+  color: #3d4a43;
+  line-height: 1.75;
+  font-size: 0.94rem;
+}
+.about-card-icon {
+  margin: 0;
+}
+.about-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  counter-reset: about-step;
+}
+.about-steps li {
+  padding: 24px;
+  border: 1px solid rgba(22, 61, 34, 0.12);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(22, 61, 34, 0.07);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.about-honesty {
+  width: 100%;
+  text-align: left;
+}
+.about-honesty > h2 {
+  text-align: center;
+  margin: 10px 0 4px;
+  font-family: var(--heading);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+.about-meanings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+.about-meanings > div {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(27, 61, 44, 0.05);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.about-disclaimer {
+  text-align: center;
+  color: #54635b !important;
+  font-size: 0.88rem !important;
+}
+.about-links {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.about-links .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 800px) {
+  .about-page {
+    width: min(100% - 28px, 680px);
+    padding: 38px 0 68px;
+    gap: 48px;
+  }
+  .about-cards,
+  .about-steps,
+  .about-meanings {
+    grid-template-columns: 1fr;
+  }
+  .about-hero-actions .button {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+}
+
+/* ===== Help docs page — about tokens plus sticky topic index ===== */
+.help-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+.help-toc {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line, #ccd6ce);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  display: grid;
+  gap: 10px;
+}
+.help-toc strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.help-toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+.help-toc a {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #3d4a43;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.help-toc a:hover {
+  background: rgba(27, 61, 44, 0.07);
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.help-docs {
+  display: grid;
+  gap: 40px;
+  min-width: 0;
+}
+.help-docs section {
+  display: grid;
+  gap: 12px;
+  scroll-margin-top: 24px;
+}
+.help-docs h2 {
+  margin: 6px 0 0;
+  font-family: var(--heading);
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.help-docs p,
+.help-docs li {
+  color: #3d4a43;
+  line-height: 1.75;
+  font-size: 0.95rem;
+}
+.help-docs p {
+  margin: 0;
+}
+.help-docs ul,
+.help-docs ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .help-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .help-toc {
+    position: static;
+  }
+  .help-toc ol {
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .help-toc ol {
+    grid-template-columns: 1fr;
+  }
+}
