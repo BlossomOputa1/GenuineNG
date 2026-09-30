@@ -1,13 +1,13 @@
-import { useRef, useState } from 'react';
-import Hero from '../components/Hero';
-import ScanCameraView from '../components/ScanCameraView';
-import WhyGenuineNG from '../components/WhyGenuineNG';
-import CodeScanFlow from '../components/CodeScanFlow';
-import CheckModeSwitch from '../components/CheckModeSwitch';
+import { useRef, useState } from "react";
+import CheckModeSwitch from "../components/CheckModeSwitch";
+import CodeScanFlow from "../components/CodeScanFlow";
+import Hero from "../components/Hero";
+import ScanCameraView from "../components/ScanCameraView";
+import WhyGenuineNG from "../components/WhyGenuineNG";
 
-export default function ScanPage({ navigate, onBeginScan }) {
+export default function ScanPage({ navigate, onBeginScan, session }) {
   const heading = useRef(null);
-  const [checkMode, setCheckMode] = useState('registry');
+  const [checkMode, setCheckMode] = useState("registry");
 
   function beginWithPhoto(file) {
     onBeginScan(file);
@@ -19,20 +19,25 @@ export default function ScanPage({ navigate, onBeginScan }) {
         headingRef={heading}
         navigate={navigate}
         onStart={() =>
-          document.getElementById('scan-workspace')?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
+          document.getElementById("scan-workspace")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
           })
         }
+        session={session}
       />
 
       <WhyGenuineNG navigate={navigate} />
 
-      <section className="public-scan-workspace" id="scan-workspace" aria-label="Product check">
+      <section
+        className="public-scan-workspace"
+        id="scan-workspace"
+        aria-label="Product check"
+      >
         <CheckModeSwitch value={checkMode} onChange={setCheckMode} />
 
         <div className="public-scan-mode-panel">
-          {checkMode === 'registry' ? (
+          {checkMode === "registry" ? (
             <ScanCameraView
               photos={[]}
               onPhoto={beginWithPhoto}

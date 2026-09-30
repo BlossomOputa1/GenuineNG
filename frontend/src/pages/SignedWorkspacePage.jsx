@@ -8,8 +8,8 @@ import {
   getSessionWithScans,
   listSessions,
   renameSession,
-  saveScan,
   saveCodeScan,
+  saveScan,
   setSessionPinned,
 } from "../services/historyService";
 import { getDisplayName } from "../services/supabase";
@@ -89,13 +89,21 @@ export default function SignedWorkspacePage({
 
   async function completeScan(result, options = {}) {
     try {
-      const isCode = result?.type === 'genuine_code' || Boolean(result?.payload?.unitId);
+      const isCode =
+        result?.type === "genuine_code" || Boolean(result?.payload?.unitId);
       const persisted = isCode
         ? await saveCodeScan(userId, threadId || null, result)
-        : await saveScan(userId, threadId || null, result, options.existingScanId || null);
+        : await saveScan(
+            userId,
+            threadId || null,
+            result,
+            options.existingScanId || null,
+          );
 
       if (!persisted?.sessionId || !persisted?.scanId) {
-        throw new Error('The check completed, but GenuineNG could not confirm that history was saved.');
+        throw new Error(
+          "The check completed, but GenuineNG could not confirm that history was saved.",
+        );
       }
 
       if (threadId) {
@@ -106,7 +114,9 @@ export default function SignedWorkspacePage({
       }
       return persisted;
     } catch (problem) {
-      setError(problem.message || "The result was checked, but saving history failed.");
+      setError(
+        problem.message || "The result was checked, but saving history failed.",
+      );
       return null;
     }
   }
@@ -269,11 +279,7 @@ export default function SignedWorkspacePage({
             <Icon name="plus" size={17} />
             <span>New Check</span>
           </button>
-          <button
-            type="button"
-            title="Help"
-            onClick={() => sidebarNavigate("/help")}
-          >
+          <button type="button" title="Help" aria-disabled="true">
             <Icon name="question" size={17} />
             <span>Help</span>
           </button>
@@ -285,11 +291,7 @@ export default function SignedWorkspacePage({
             <Icon name="scan" size={17} />
             <span>Partners</span>
           </button>
-          <button
-            type="button"
-            title="Contact"
-            onClick={() => sidebarNavigate("/contact")}
-          >
+          <button type="button" title="Contact" aria-disabled="true">
             <Icon name="info" size={17} />
             <span>Contact</span>
           </button>
@@ -447,7 +449,11 @@ export default function SignedWorkspacePage({
       <main className="workspace-main">
         <header className="workspace-main-header">
           <div>
-            <span className="eyebrow">{currentThread?.mode === "genuine_code" ? "GENUINENG CODE" : "GENUINENG REGISTRY"}</span>
+            <span className="eyebrow">
+              {currentThread?.mode === "genuine_code"
+                ? "GENUINENG CODE"
+                : "GENUINENG REGISTRY"}
+            </span>
             <strong>{currentThread?.title || "New product check"}</strong>
           </div>
           <div className="workspace-header-user">
@@ -473,10 +479,7 @@ export default function SignedWorkspacePage({
             <div className="empty-state">
               <span className="eyebrow">HISTORY</span>
               <h2>That saved check was not found.</h2>
-              <button
-                className="button primary"
-                onClick={startNewCheck}
-              >
+              <button className="button primary" onClick={startNewCheck}>
                 Start a new check
               </button>
             </div>
@@ -488,7 +491,9 @@ export default function SignedWorkspacePage({
               mode="signed"
               onCancelPendingScan={() => navigate("/app")}
               conversationId={threadId}
-              initialMode={currentThread?.mode === 'genuine_code' ? 'code' : 'registry'}
+              initialMode={
+                currentThread?.mode === "genuine_code" ? "code" : "registry"
+              }
               sessionLocked={Boolean(currentThread)}
             />
           )}

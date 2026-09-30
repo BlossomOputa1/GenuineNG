@@ -6,15 +6,16 @@ const navGroups = [
       { label: "Overview", path: "/manufacturer", icon: "dashboard" },
       { label: "Products", path: "/manufacturer/products", icon: "package" },
       { label: "Batches", path: "/manufacturer/batches", icon: "layers" },
-      { label: "Generate Codes", path: "/manufacturer/generate-codes", icon: "qr" },
-      { label: "Scan Activity", path: "/manufacturer/scan-activity", icon: "chart" },
-    ],
-  },
-  {
-    label: "MANAGEMENT",
-    items: [
-      { label: "Team", path: "/manufacturer/team", icon: "users" },
-      { label: "Company Profile", path: "/manufacturer/profile", icon: "settings" },
+      {
+        label: "Generate Codes",
+        path: "/manufacturer/generate-codes",
+        icon: "qr",
+      },
+      {
+        label: "Scan Activity",
+        path: "/manufacturer/scan-activity",
+        icon: "chart",
+      },
     ],
   },
 ];
@@ -66,7 +67,9 @@ export default function ManufacturerSidebar({
               )}
             </span>
             <span className="manufacturer-brand-copy">
-              <strong>Genuine<span>NG</span></strong>
+              <strong>
+                Genuine<span>NG</span>
+              </strong>
               <small>MANUFACTURER</small>
             </span>
           </button>
@@ -98,10 +101,18 @@ export default function ManufacturerSidebar({
           <span>Generate Codes</span>
         </button>
 
-        <nav className="manufacturer-nav" aria-label="Manufacturer portal navigation">
+        <nav
+          className="manufacturer-nav"
+          aria-label="Manufacturer portal navigation"
+        >
           {navGroups.map((group, groupIndex) => (
-            <div className="manufacturer-nav-group" key={group.label || groupIndex}>
-              {group.label && <span className="manufacturer-nav-label">{group.label}</span>}
+            <div
+              className="manufacturer-nav-group"
+              key={group.label || groupIndex}
+            >
+              {group.label && (
+                <span className="manufacturer-nav-label">{group.label}</span>
+              )}
               {group.items.map((item) => (
                 <button
                   type="button"
@@ -130,10 +141,12 @@ export default function ManufacturerSidebar({
           </button>
 
           <div className="manufacturer-profile-card">
-            <div className="manufacturer-avatar">{profile?.initials || "AM"}</div>
+            <div className="manufacturer-avatar">
+              {profile?.initials || "AM"}
+            </div>
             <div>
               <strong>{profile?.companyName || "Approved manufacturer"}</strong>
-              <span><i /> {profile?.status || "Approved manufacturer"}</span>
+              <span>{profile?.status || "Approved manufacturer"}</span>
             </div>
           </div>
 

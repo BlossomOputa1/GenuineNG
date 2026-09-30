@@ -11,6 +11,16 @@ import {
   sandboxSettleInvoice,
 } from '../../services/manufacturerApi';
 
+const formatNumber = (value) =>
+  new Intl.NumberFormat("en-NG").format(value || 0);
+const dateLabel = (value) =>
+  value
+    ? new Intl.DateTimeFormat("en-NG", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(value))
+    : "-";
 const formatNumber = (value) => new Intl.NumberFormat('en-NG').format(value || 0);
 const dateLabel = (value) =>
   value
@@ -21,7 +31,7 @@ const UNIT_COST_NGN = 10;
 
 export default function GenerateCodesPage() {
   const [batches, setBatches] = useState([]);
-  const [batchId, setBatchId] = useState('');
+  const [batchId, setBatchId] = useState("");
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -49,6 +59,18 @@ export default function GenerateCodesPage() {
     try {
       const next = await getBatches();
       setBatches(next);
+      setBatchId(
+        (current) =>
+          current ||
+          next.find((item) => item.status !== "generated")?.id ||
+          next[0]?.id ||
+          "",
+      );
+    } catch (problem) {
+      setError(problem.message || "Could not load batches.");
+    } finally {
+      setLoading(false);
+    }
       setBatchId((current) => current || next.find((item) => item.status !== 'generated')?.id || next[0]?.id || '');
     } catch (problem) {
       setError(problem.message || 'Could not load batches.');
@@ -62,11 +84,16 @@ export default function GenerateCodesPage() {
     return () => cleanupPaymentWatcher();
   }, [cleanupPaymentWatcher]);
 
-  const batch = useMemo(() => batches.find((item) => item.id === batchId), [batches, batchId]);
+  const batch = useMemo(
+    () => batches.find((item) => item.id === batchId),
+    [batches, batchId],
+  );
   const generatedCount = progress?.generated ?? batch?.codesGenerated ?? 0;
   const total = progress?.total ?? batch?.unitsProduced ?? 0;
   const percent = total ? Math.floor((generatedCount / total) * 100) : 0;
-  const complete = Boolean(progress?.complete || (batch && batch.status === 'generated'));
+  const complete = Boolean(
+    progress?.complete || (batch && batch.status === "generated"),
+  );
 
   const generate = useCallback(async () => {
     if (!batch) return;

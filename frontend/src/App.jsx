@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./components/Icon";
 import NotificationBell from "./components/NotificationBell";
-import { signOut } from "./services/authService";
 import { checkBackendHealth } from "./services/api";
+import { signOut } from "./services/authService";
 import {
   getDisplayName,
   supabase,
@@ -19,6 +19,12 @@ const headerNavItems = [
   { label: "Partners", path: "/partners" },
   { label: "Contact", path: "/contact" },
 ];
+const deferredPaths = new Set(["/about", "/contact", "/help"]);
+
+function isDeferredPath(path) {
+  const pathname = path.split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+  return deferredPaths.has(pathname);
+}
 const productAlertText =
   "Counterfeit products can copy real-looking label details. GenuineNG makes printed information easier to read, review and check while being clear about what a label check can and cannot prove.";
 
@@ -26,15 +32,29 @@ const GuestScanPage = lazy(() => import("./pages/GuestScanPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const Layer2ScanPage = lazy(() => import("./pages/Layer2ScanPage"));
 const PlaceholderPage = lazy(() => import("./pages/PlaceholderPage"));
-const PartnerApplicationPage = lazy(() => import("./pages/PartnerApplicationPage"));
-const AdminPartnerApprovalPage = lazy(() => import("./pages/AdminPartnerApprovalPage"));
+const PartnerApplicationPage = lazy(
+  () => import("./pages/PartnerApplicationPage"),
+);
+const AdminPartnerApprovalPage = lazy(
+  () => import("./pages/AdminPartnerApprovalPage"),
+);
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const ScanPage = lazy(() => import("./pages/ScanPage"));
 const SignedWorkspacePage = lazy(() => import("./pages/SignedWorkspacePage"));
-const ManufacturerPortalPage = lazy(() => import("./pages/manufacturer/ManufacturerPortalPage"));
+const ManufacturerPortalPage = lazy(
+  () => import("./pages/manufacturer/ManufacturerPortalPage"),
+);
 
 function RouteFallback() {
-  return <div className="app-shell"><main className="site-main workspace-login-fallback"><div className="empty-state"><p>Loading...</p></div></main></div>;
+  return (
+    <div className="app-shell">
+      <main className="site-main workspace-login-fallback">
+        <div className="empty-state">
+          <p>Loading...</p>
+        </div>
+      </main>
+    </div>
+  );
 }
 
 function ProductAlertMessage() {
@@ -52,7 +72,11 @@ function ProductAlertMessage() {
 }
 
 export default function App() {
-  return <Suspense fallback={<RouteFallback />}><AppContent /></Suspense>;
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <AppContent />
+    </Suspense>
+  );
 }
 
 function AppContent() {
@@ -68,9 +92,14 @@ function AppContent() {
   const [guestCodeScans, setGuestCodeScans] = useState([]);
   const mainRef = useRef(null);
   const previousPath = useRef(route.pathname);
+  const visibleHeaderNavItems = headerNavItems.filter(
+    (item) => item.path !== "/partners" || Boolean(session?.user),
+  );
 
   function navigate(path, replace = false) {
     if (!path.startsWith("/") || path.startsWith("//")) return;
+    if (isDeferredPath(path)) return;
+
     window.history[replace ? "replaceState" : "pushState"]({}, "", path);
     setRoute(readLocation());
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -150,29 +179,34 @@ function AppContent() {
       setGuestInitialPhoto(null);
       setGuestScans([]);
     }
-    if (previousPath.current === "/code-scan" && route.pathname !== "/code-scan") {
+    if (
+      previousPath.current === "/code-scan" &&
+      route.pathname !== "/code-scan"
+    ) {
       setGuestCodeScans([]);
     }
     previousPath.current = route.pathname;
   }, [route.pathname]);
   useEffect(() => {
-    const identifier = route.pathname === "/admin/partner-approval"
-      ? "Partner Approval"
-      : route.pathname.startsWith("/manufacturer")
-        ? `Manufacturer · ${route.pathname.split("/").filter(Boolean).slice(-1)[0] === "manufacturer" ? "Overview" : route.pathname.split("/").filter(Boolean).slice(-1)[0].replaceAll("-", " ")}`
-      : route.pathname.startsWith("/app/")
-        ? "Saved Check"
-        : {
-          "/scan": "Product Check",
-          "/code-scan": "GenuineNG Code",
-          "/login": "Sign In",
-          "/reset-password": "Reset Password",
-          "/app": "Workspace",
-          "/about": "About",
-          "/help": "Help",
-          "/partners": "Partners",
-          "/contact": "Contact",
-        }[route.pathname] || (route.pathname === "/" ? "" : "Page Not Found");
+    const identifier =
+      route.pathname === "/admin/partner-approval"
+        ? "Partner Approval"
+        : route.pathname.startsWith("/manufacturer")
+          ? `Manufacturer · ${route.pathname.split("/").filter(Boolean).slice(-1)[0] === "manufacturer" ? "Overview" : route.pathname.split("/").filter(Boolean).slice(-1)[0].replaceAll("-", " ")}`
+          : route.pathname.startsWith("/app/")
+            ? "Saved Check"
+            : {
+                "/scan": "Product Check",
+                "/code-scan": "GenuineNG Code",
+                "/login": "Sign In",
+                "/reset-password": "Reset Password",
+                "/app": "Workspace",
+                "/about": "About",
+                "/help": "Help",
+                "/partners": "Partners",
+                "/contact": "Contact",
+              }[route.pathname] ||
+              (route.pathname === "/" ? "" : "Page Not Found");
     document.title = identifier ? `GenuineNG - ${identifier}` : "GenuineNG";
     mainRef.current?.focus({ preventScroll: true });
     setMenuOpen(false);
@@ -208,14 +242,21 @@ function AppContent() {
   const navIsActive = (path) =>
     path === "/" ? route.pathname === "/" : route.pathname === path;
   function navClick(event, path) {
+    if (isDeferredPath(path)) {
+      event.preventDefault();
+      return;
+    }
+
     if (
       event.button !== 0 ||
       event.metaKey ||
       event.ctrlKey ||
       event.shiftKey ||
       event.altKey
-    )
+    ) {
       return;
+    }
+
     event.preventDefault();
     setMenuOpen(false);
     navigate(path);
@@ -223,19 +264,28 @@ function AppContent() {
   const isWorkspaceRoute =
     route.pathname === "/app" || route.pathname.startsWith("/app/");
   const isManufacturerRoute =
-    route.pathname === "/manufacturer" || route.pathname.startsWith("/manufacturer/");
+    route.pathname === "/manufacturer" ||
+    route.pathname.startsWith("/manufacturer/");
   const isPartnerApprovalRoute = route.pathname === "/admin/partner-approval";
 
-  if (authLoading && (isWorkspaceRoute || isManufacturerRoute || isPartnerApprovalRoute))
+  if (
+    authLoading &&
+    (isWorkspaceRoute ||
+      isManufacturerRoute ||
+      isPartnerApprovalRoute ||
+      route.pathname === "/login" ||
+      route.pathname === "/partners")
+  ) {
     return (
       <div className="app-shell">
         <main className="site-main workspace-login-fallback">
-          <div className="empty-state">
+          <div className="empty-state" role="status">
             <p>Loading your account…</p>
           </div>
         </main>
       </div>
     );
+  }
 
   if (isPartnerApprovalRoute) {
     if (!session) {
@@ -243,10 +293,7 @@ function AppContent() {
       return (
         <div className="app-shell auth-route-shell">
           <main className="site-main auth-route-main">
-            <LoginPage
-              session={session}
-              navigate={(path, replace = false) => navigate(path === "/app" ? returnPath : path, replace)}
-            />
+            <LoginPage session={session} navigate={navigate} />
           </main>
         </div>
       );
@@ -299,7 +346,50 @@ function AppContent() {
       />
     );
   }
+  if (route.pathname === "/reset-password") {
+    return (
+      <div className="app-shell reset-route-shell">
+        <header className="site-header reset-route-header">
+          <div className="header-inner reset-route-header-inner">
+            <span className="wordmark reset-route-wordmark">
+              <img src="/icons/favicon.svg" alt="" width="30" height="30" />
+              <span>
+                Genuine<span className="brand-suffix">NG</span>
+              </span>
+            </span>
+          </div>
+        </header>
 
+        <main
+          id="main-content"
+          ref={mainRef}
+          tabIndex="-1"
+          className="site-main reset-route-main"
+        >
+          <ResetPasswordPage navigate={navigate} />
+        </main>
+      </div>
+    );
+  }
+  if (route.pathname === "/partners" && !session?.user) {
+    return (
+      <div className="app-shell auth-route-shell">
+        <main
+          id="main-content"
+          ref={mainRef}
+          tabIndex="-1"
+          className="site-main auth-route-main"
+        >
+          <LoginPage
+            session={session}
+            navigate={(path, replace = false) =>
+              navigate(path === "/app" ? "/partners" : path, replace)
+            }
+          />
+        </main>
+      </div>
+    );
+  }
   if (route.pathname === "/login") {
     return (
       <div className="app-shell auth-route-shell">
@@ -334,7 +424,7 @@ function AppContent() {
             </span>
           </a>
           <nav className="main-nav" aria-label="Main navigation">
-            {headerNavItems.map((item) => (
+            {visibleHeaderNavItems.map((item) => (
               <a
                 key={item.path}
                 className={navIsActive(item.path) ? "active" : ""}
@@ -359,7 +449,11 @@ function AppContent() {
             )}
             {session ? (
               <>
-                <NotificationBell userId={session.user.id} navigate={navigate} compact />
+                <NotificationBell
+                  userId={session.user.id}
+                  navigate={navigate}
+                  compact
+                />
                 <span className="account-email">
                   {getDisplayName(session.user)}
                 </span>
@@ -437,11 +531,13 @@ function AppContent() {
               className="mobile-menu-nav"
               aria-label="Mobile main navigation"
             >
-              {headerNavItems.map((item) => (
+              {visibleHeaderNavItems.map((item) => (
                 <a
                   key={item.path}
                   className={navIsActive(item.path) ? "active" : ""}
-                  href={item.path}
+                  href={isDeferredPath(item.path) ? undefined : item.path}
+                  aria-disabled={isDeferredPath(item.path) ? true : undefined}
+                  title={isDeferredPath(item.path) ? "Coming soon" : undefined}
                   onClick={(event) => navClick(event, item.path)}
                 >
                   {item.label}
@@ -492,14 +588,18 @@ function AppContent() {
         <div className="offline-strip" role="status">
           <Icon name="offline" size={17} />
           <p>
-            Network unavailable. Live verification and history saving require a connection.
+            Network unavailable. Live verification and history saving require a
+            connection.
           </p>
         </div>
       )}
       {online && backendHealthy === false && (
         <div className="offline-strip" role="status">
           <Icon name="info" size={17} />
-          <p>The GenuineNG service is temporarily unavailable. Live checks and saved history may be delayed.</p>
+          <p>
+            The GenuineNG service is temporarily unavailable. Live checks and
+            saved history may be delayed.
+          </p>
         </div>
       )}
       {route.pathname === "/" && (
@@ -525,7 +625,11 @@ function AppContent() {
         className={`site-main ${route.pathname === "/scan" ? "guest-scan-main" : ""}`}
       >
         {route.pathname === "/" ? (
-          <ScanPage navigate={navigate} onBeginScan={beginGuestScan} />
+          <ScanPage
+            navigate={navigate}
+            onBeginScan={beginGuestScan}
+            session={session}
+          />
         ) : route.pathname === "/scan" ? (
           <GuestScanPage
             initialPhotoFile={guestInitialPhoto}
@@ -538,18 +642,24 @@ function AppContent() {
             previousScans={guestCodeScans}
             mode="guest"
             onResultComplete={async (result) => {
-              const saved = { ...result, id: result.id || globalThis.crypto?.randomUUID?.() || `${Date.now()}` };
+              const saved = {
+                ...result,
+                id:
+                  result.id ||
+                  globalThis.crypto?.randomUUID?.() ||
+                  `${Date.now()}`,
+              };
               setGuestCodeScans((current) => [...current, saved]);
               return saved;
             }}
           />
-        ) : route.pathname === "/reset-password" ? (
-          <ResetPasswordPage navigate={navigate} />
         ) : route.pathname === "/partners" ? (
-          <PartnerApplicationPage navigate={navigate} />
-        ) : ["/about", "/help", "/contact"].includes(
-            route.pathname,
-          ) ? (
+          <PartnerApplicationPage
+            navigate={navigate}
+            session={session}
+            authLoading={authLoading}
+          />
+        ) : ["/about", "/help", "/contact"].includes(route.pathname) ? (
           <PlaceholderPage page={route.pathname.slice(1)} navigate={navigate} />
         ) : (
           <div className="empty-state not-found-state">
