@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AuthMascots from "../components/AuthMascots";
 import Icon from "../components/Icon";
 import {
@@ -6,7 +6,7 @@ import {
   signInWithPassword,
   signUpWithPassword,
 } from "../services/authService";
-import { getDisplayName, supabaseConfigured } from "../services/supabase";
+import { supabaseConfigured } from "../services/supabase";
 
 export default function LoginPage({ session, navigate }) {
   const [mode, setMode] = useState("signin");
@@ -19,18 +19,13 @@ export default function LoginPage({ session, navigate }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  if (session?.user) {
-    return (
-      <div className="empty-state login-already-in">
-        <span className="eyebrow">SIGNED IN</span>
-        <h1>Welcome back, {getDisplayName(session.user)}.</h1>
-        <p>Your saved GenuineNG checks are ready.</p>
-        <button className="button primary" onClick={() => navigate("/app")}>
-          Open workspace <Icon name="arrow" />
-        </button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (session?.user) {
+      navigate("/app", true);
+    }
+  }, [session?.user?.id, navigate]);
+
+  if (session?.user) return null;
 
   async function submit(event) {
     event.preventDefault();

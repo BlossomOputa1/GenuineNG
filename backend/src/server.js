@@ -1,43 +1,43 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import compression from 'compression';
-import { rateLimit } from 'express-rate-limit';
-import labelChecksRouter from './routes/labelChecks.js';
-import scansRouter from './routes/scans.js';
-import extractLabelRouter from './routes/extractLabel.js';
-import manufacturerRouter from './routes/manufacturer.js';
-import verifyCodeRouter from './routes/verifyCode.js';
-import './services/keyManager.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import partnerApplicationsRouter from './routes/partnerApplications.js';
+import compression from "compression";
+import cors from "cors";
+import "dotenv/config";
+import express from "express";
+import { rateLimit } from "express-rate-limit";
+import { errorHandler } from "./middleware/errorHandler.js";
+import extractLabelRouter from "./routes/extractLabel.js";
+import labelChecksRouter from "./routes/labelChecks.js";
+import manufacturerRouter from "./routes/manufacturer.js";
+import partnerApplicationsRouter from "./routes/partnerApplications.js";
+import scansRouter from "./routes/scans.js";
+import verifyCodeRouter from "./routes/verifyCode.js";
+import "./services/keyManager.js";
 
 const requiredEnvVars = [
-  'GEMINI_API_KEY',
-  'SUPABASE_URL',
-  'SUPABASE_PUBLISHABLE_KEY',
-  'SUPABASE_SECRET_KEY',
-  'GENUINENG_ED25519_PRIVATE_KEY',
-  'GENUINENG_ED25519_PUBLIC_KEY',
-  'GENUINENG_KEY_VERSION',
+  "GEMINI_API_KEY",
+  "SUPABASE_URL",
+  "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_SECRET_KEY",
+  "GENUINENG_ED25519_PRIVATE_KEY",
+  "GENUINENG_ED25519_PUBLIC_KEY",
+  "GENUINENG_KEY_VERSION",
 ];
 const missing = requiredEnvVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error(
-    `Startup aborted. Missing required environment variables: ${missing.join(', ')}. Configure these in the Render service environment.`
+    `Startup aborted. Missing required environment variables: ${missing.join(", ")}. Configure these in the Render service environment.`,
   );
   process.exit(1);
 }
 
-if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_ORIGIN) {
-  throw new Error('FRONTEND_ORIGIN must be set in production.');
+if (process.env.NODE_ENV === "production" && !process.env.FRONTEND_ORIGIN) {
+  throw new Error("FRONTEND_ORIGIN must be set in production.");
 }
 
 const app = express();
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || '')
-  .split(',')
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "")
+  .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
 
@@ -57,22 +57,22 @@ app.use(
       if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
-      const error = new Error('Origin not allowed by CORS policy.');
+      const error = new Error("Origin not allowed by CORS policy.");
       error.statusCode = 403;
       return callback(error);
     },
     credentials: true,
-  })
+  }),
 );
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
-  standardHeaders: 'draft-8',
+  standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
-    status: 'error',
-    reason: 'Too many requests. Please try again in a few minutes.',
+    status: "error",
+    reason: "Too many requests. Please try again in a few minutes.",
   },
 });
 
@@ -81,63 +81,78 @@ const apiLimiter = rateLimit({
 const manufacturerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 240,
-  standardHeaders: 'draft-8',
+  standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
-    error: { code: 'RATE_LIMITED', message: 'Too many manufacturer requests. Please retry shortly.' },
+    error: {
+      code: "RATE_LIMITED",
+      message: "Too many manufacturer requests. Please retry shortly.",
+    },
   },
 });
 
-app.use(express.json({ limit: '32kb' }));
+app.use(express.json({ limit: "32kb" }));
 app.use(compression());
 
 app.use((req, res, next) => {
   console.log(
-    `${new Date().toISOString()} ${req.method} ${req.originalUrl} | req.ip=${req.ip} | x-forwarded-for=${req.headers['x-forwarded-for'] || '(missing)'}`
+    `${new Date().toISOString()} ${req.method} ${req.originalUrl} | req.ip=${req.ip} | x-forwarded-for=${req.headers["x-forwarded-for"] || "(missing)"}`,
   );
   next();
 });
 
-app.get('/api/health', (req, res) => {
+app.get("/api/health", (req, res) => {
   res.json({
-    status: 'ok',
-    service: 'genuineng',
+    status: "ok",
+    service: "genuineng",
     time: new Date().toISOString(),
   });
 });
 
-app.use('/api', apiLimiter, extractLabelRouter);
-app.use('/api/label-checks', apiLimiter, labelChecksRouter);
-app.use('/api/scans', scansRouter);
-if (process.env.MANUFACTURER_PORTAL_ENABLED !== 'false') {
-  app.use('/api/manufacturer', manufacturerLimiter, manufacturerRouter);
-} else {
-  app.use('/api/manufacturer', (_req, res) => res.status(503).json({
-    error: { code: 'MANUFACTURER_PORTAL_DISABLED', message: 'The manufacturer portal is currently disabled.' },
-  }));
-}
-app.use('/api/partner-applications', apiLimiter, partnerApplicationsRouter);
-app.use('/api/verify-code', apiLimiter, verifyCodeRouter);
+// Extraction keeps its existing /api/extract-label endpoint.
+app.use("/api/extract-label", apiLimiter);
+app.use("/api", extractLabelRouter);
 
-app.use('/api', (req, res) => {
+// Apply the general limiter once to each relevant route.
+app.use("/api/label-checks", apiLimiter, labelChecksRouter);
+app.use("/api/scans", apiLimiter, scansRouter);
+
+// Manufacturer requests use their dedicated limiter.
+if (process.env.MANUFACTURER_PORTAL_ENABLED !== "false") {
+  app.use("/api/manufacturer", manufacturerLimiter, manufacturerRouter);
+} else {
+  app.use("/api/manufacturer", (_req, res) =>
+    res.status(503).json({
+      error: {
+        code: "MANUFACTURER_PORTAL_DISABLED",
+        message: "The manufacturer portal is currently disabled.",
+      },
+    }),
+  );
+}
+
+app.use("/api/partner-applications", apiLimiter, partnerApplicationsRouter);
+app.use("/api/verify-code", apiLimiter, verifyCodeRouter);
+
+app.use("/api", (req, res) => {
   return res.status(404).json({
-    status: 'error',
-    reason: 'API route not found.',
+    status: "error",
+    reason: "API route not found.",
   });
 });
 
 // Catches multer's file-size/file-type errors before the general error
 // handler, since multer throws plain Errors rather than using statusCode.
 app.use((err, req, res, next) => {
-  if (err.message?.includes('File too large')) {
+  if (err.message?.includes("File too large")) {
     return res.status(400).json({
-      error: { code: 'FILE_TOO_LARGE', message: 'Image must be under 8MB.' },
+      error: { code: "FILE_TOO_LARGE", message: "Image must be under 8MB." },
     });
   }
-  if (err.message?.includes('Only JPEG, PNG, or WebP')) {
+  if (err.message?.includes("Only JPEG, PNG, or WebP")) {
     return res
       .status(400)
-      .json({ error: { code: 'INVALID_FILE_TYPE', message: err.message } });
+      .json({ error: { code: "INVALID_FILE_TYPE", message: err.message } });
   }
   next(err);
 });
@@ -146,5 +161,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () =>
-  console.log(`GenuineNG backend running on port ${PORT}`)
+  console.log(`GenuineNG backend running on port ${PORT}`),
 );

@@ -51,10 +51,12 @@ function TypingText({ text, className = "" }) {
   );
 }
 
-export default function Hero({ onStart, navigate, headingRef }) {
-  function goToLogin(event) {
+export default function Hero({ onStart, navigate, headingRef, session }) {
+  const accountPath = session?.user ? "/app" : "/login";
+
+  function goToAccount(event) {
     event.preventDefault();
-    navigate("/login");
+    navigate(accountPath);
   }
 
   return (
@@ -97,18 +99,20 @@ export default function Hero({ onStart, navigate, headingRef }) {
           className="hero-button hero-button-primary"
           onClick={onStart}
         >
-          Start checking
+          <span className="hero-button-label">Start checking</span>
           <span className="hero-button-icon">
             <Icon name="arrow" size={15} />
           </span>
         </button>
 
         <a
-          href="/login"
+          href={accountPath}
           className="hero-button hero-button-secondary"
-          onClick={goToLogin}
+          onClick={goToAccount}
         >
-          Sign in
+          <span className="hero-button-label">
+            {session?.user ? "Checkspace" : "Sign in"}
+          </span>
           <span className="hero-button-icon">
             <Icon name="arrow" size={15} />
           </span>
@@ -118,10 +122,34 @@ export default function Hero({ onStart, navigate, headingRef }) {
       <div className="hero-gallery-shell">
         <div className="hero-gallery-frame">
           <div className="hero-gallery-grid">
-            <img src="/images/hero1.webp" alt="" width="960" height="640" fetchPriority="high" />
-            <img src="/images/hero2.webp" alt="" width="960" height="640" loading="lazy" />
-            <img src="/images/hero3.webp" alt="" width="960" height="640" loading="lazy" />
-            <img src="/images/hero4.webp" alt="" width="960" height="640" loading="lazy" />
+            <img
+              src="/images/hero1.webp"
+              alt=""
+              width="960"
+              height="640"
+              fetchPriority="high"
+            />
+            <img
+              src="/images/hero2.webp"
+              alt=""
+              width="960"
+              height="640"
+              loading="lazy"
+            />
+            <img
+              src="/images/hero3.webp"
+              alt=""
+              width="960"
+              height="640"
+              loading="lazy"
+            />
+            <img
+              src="/images/hero4.webp"
+              alt=""
+              width="960"
+              height="640"
+              loading="lazy"
+            />
           </div>
         </div>
       </div>
