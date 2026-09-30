@@ -11073,3 +11073,100 @@ body {
     justify-content: center;
   }
 }
+
+/* ===== Help docs page — about tokens plus sticky topic index ===== */
+.help-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+.help-toc {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line, #ccd6ce);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  display: grid;
+  gap: 10px;
+}
+.help-toc strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.help-toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+.help-toc a {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #3d4a43;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.help-toc a:hover {
+  background: rgba(27, 61, 44, 0.07);
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.help-docs {
+  display: grid;
+  gap: 40px;
+  min-width: 0;
+}
+.help-docs section {
+  display: grid;
+  gap: 12px;
+  scroll-margin-top: 24px;
+}
+.help-docs h2 {
+  margin: 6px 0 0;
+  font-family: var(--heading);
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.help-docs p,
+.help-docs li {
+  color: #3d4a43;
+  line-height: 1.75;
+  font-size: 0.95rem;
+}
+.help-docs p {
+  margin: 0;
+}
+.help-docs ul,
+.help-docs ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .help-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .help-toc {
+    position: static;
+  }
+  .help-toc ol {
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .help-toc ol {
+    grid-template-columns: 1fr;
+  }
+}
