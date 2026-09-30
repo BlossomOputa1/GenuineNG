@@ -279,7 +279,11 @@ export default function SignedWorkspacePage({
             <Icon name="plus" size={17} />
             <span>New Check</span>
           </button>
-          <button type="button" title="Help" aria-disabled="true">
+          <button
+            type="button"
+            title="Help"
+            onClick={() => sidebarNavigate("/help")}
+          >
             <Icon name="question" size={17} />
             <span>Help</span>
           </button>
@@ -291,7 +295,11 @@ export default function SignedWorkspacePage({
             <Icon name="scan" size={17} />
             <span>Partners</span>
           </button>
-          <button type="button" title="Contact" aria-disabled="true">
+          <button
+            type="button"
+            title="Contact"
+            onClick={() => sidebarNavigate("/contact")}
+          >
             <Icon name="info" size={17} />
             <span>Contact</span>
           </button>
