@@ -10753,3 +10753,81 @@ body {
 .manufacturer-dialog .manufacturer-form-grid select {
   margin: 0;
 }
+
+/* ===== Login consent note (under inputs, above submit) ===== */
+.auth-legal-note {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+  color: #54635b;
+}
+.auth-legal-note a {
+  color: var(--reference-deep-green, #1b3d2c);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 6px 2px;
+}
+
+/* ===== Legal pages (privacy / terms) — same card language as placeholders ===== */
+.legal-page {
+  align-items: start;
+}
+.legal-card {
+  text-align: left;
+  width: min(760px, 100%);
+}
+.legal-card > .placeholder-icon,
+.legal-card > .eyebrow,
+.legal-card > h1,
+.legal-card > .legal-updated {
+  text-align: center;
+}
+.legal-card > h1 {
+  font-size: clamp(1.9rem, 4.6vw, 3rem);
+}
+.legal-updated {
+  margin: 0 auto 20px;
+  font-size: 0.82rem;
+  color: #54635b;
+}
+.legal-body {
+  display: grid;
+  gap: 14px;
+  text-align: left;
+}
+.legal-body h2 {
+  margin: 10px 0 -4px;
+  font-size: 1.02rem;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.legal-body p,
+.legal-body li {
+  line-height: 1.75;
+  color: #3d4a43;
+  font-size: 0.94rem;
+}
+.legal-body p {
+  margin: 0;
+}
+.legal-body ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.legal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 26px;
+}
+
+@media (max-width: 680px) {
+  .legal-actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+}
