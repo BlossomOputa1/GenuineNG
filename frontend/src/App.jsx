@@ -19,19 +19,12 @@ const headerNavItems = [
   { label: "Partners", path: "/partners" },
   { label: "Contact", path: "/contact" },
 ];
-const deferredPaths = new Set([]);
-
-function isDeferredPath(path) {
-  const pathname = path.split(/[?#]/)[0].replace(/\/+$/, "") || "/";
-  return deferredPaths.has(pathname);
-}
 const productAlertText =
   "Counterfeit products can copy real-looking label details. GenuineNG makes printed information easier to read, review and check while being clear about what a label check can and cannot prove.";
 
 const GuestScanPage = lazy(() => import("./pages/GuestScanPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const Layer2ScanPage = lazy(() => import("./pages/Layer2ScanPage"));
-const PlaceholderPage = lazy(() => import("./pages/PlaceholderPage"));
 const PartnerApplicationPage = lazy(
   () => import("./pages/PartnerApplicationPage"),
 );
@@ -103,7 +96,6 @@ function AppContent() {
 
   function navigate(path, replace = false) {
     if (!path.startsWith("/") || path.startsWith("//")) return;
-    if (isDeferredPath(path)) return;
 
     window.history[replace ? "replaceState" : "pushState"]({}, "", path);
     setRoute(readLocation());
@@ -249,11 +241,6 @@ function AppContent() {
   const navIsActive = (path) =>
     path === "/" ? route.pathname === "/" : route.pathname === path;
   function navClick(event, path) {
-    if (isDeferredPath(path)) {
-      event.preventDefault();
-      return;
-    }
-
     if (
       event.button !== 0 ||
       event.metaKey ||
@@ -542,9 +529,7 @@ function AppContent() {
                 <a
                   key={item.path}
                   className={navIsActive(item.path) ? "active" : ""}
-                  href={isDeferredPath(item.path) ? undefined : item.path}
-                  aria-disabled={isDeferredPath(item.path) ? true : undefined}
-                  title={isDeferredPath(item.path) ? "Coming soon" : undefined}
+                  href={item.path}
                   onClick={(event) => navClick(event, item.path)}
                 >
                   {item.label}
