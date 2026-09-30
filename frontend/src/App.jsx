@@ -19,7 +19,7 @@ const headerNavItems = [
   { label: "Partners", path: "/partners" },
   { label: "Contact", path: "/contact" },
 ];
-const deferredPaths = new Set(["/about", "/contact", "/help"]);
+const deferredPaths = new Set(["/about", "/help"]);
 
 function isDeferredPath(path) {
   const pathname = path.split(/[?#]/)[0].replace(/\/+$/, "") || "/";
@@ -41,6 +41,7 @@ const AdminPartnerApprovalPage = lazy(
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const TermsOfServicePage = lazy(() => import("./pages/TermsOfServicePage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
 const ScanPage = lazy(() => import("./pages/ScanPage"));
 const SignedWorkspacePage = lazy(() => import("./pages/SignedWorkspacePage"));
 const ManufacturerPortalPage = lazy(
@@ -663,8 +664,10 @@ function AppContent() {
             session={session}
             authLoading={authLoading}
           />
-        ) : ["/about", "/help", "/contact"].includes(route.pathname) ? (
+        ) : ["/about", "/help"].includes(route.pathname) ? (
           <PlaceholderPage page={route.pathname.slice(1)} navigate={navigate} />
+        ) : route.pathname === "/contact" ? (
+          <ContactPage navigate={navigate} />
         ) : route.pathname === "/privacy" ? (
           <PrivacyPolicyPage navigate={navigate} />
         ) : route.pathname === "/terms" ? (

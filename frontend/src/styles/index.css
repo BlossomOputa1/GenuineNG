@@ -10831,3 +10831,79 @@ body {
     justify-content: center;
   }
 }
+
+/* ===== Contact page — same language as partner application ===== */
+.contact-email-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 460px;
+  padding: 16px 18px;
+  border: 1px solid rgba(22, 61, 34, 0.12);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(22, 61, 34, 0.08);
+}
+.contact-email-card > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.contact-email-card strong {
+  overflow-wrap: anywhere;
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.contact-email-card small {
+  color: rgba(22, 61, 34, 0.62);
+  font-size: 0.82rem;
+}
+.contact-email-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--reference-lime, #a9e356);
+  color: var(--reference-deep-green, #1b3d2c);
+}
+.contact-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.contact-card-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-card select,
+.contact-card textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 61, 34, 0.18);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  color: var(--reference-deep-green);
+}
+.contact-card textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.contact-form-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+  color: #54635b;
+}
+
+@media (max-width: 800px) {
+  .contact-card-actions .button {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+}
