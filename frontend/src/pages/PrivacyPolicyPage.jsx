@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage({ navigate }) {
           <p>
             You can run a product check as a guest without an account. Guest
             checks are not saved to history. When you sign in, your checks can
-            be saved to your workspace history and manufacturer approvals can
+            be saved to your checkspace history and manufacturer approvals can
             be linked to your account.
           </p>
           <h2>3. How we use your information</h2>
@@ -74,7 +74,7 @@ export default function PrivacyPolicyPage({ navigate }) {
           <p>
             Your history belongs to you and is protected by row-level security
             so only you can see it. You can delete saved sessions from your
-            workspace. To request account or data deletion, email
+            checkspace. To request account or data deletion, email
             contact.genuineng@gmail.com from your account email and we will
             confirm once completed.
           </p>

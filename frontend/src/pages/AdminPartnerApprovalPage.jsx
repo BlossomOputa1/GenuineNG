@@ -130,7 +130,7 @@ export default function AdminPartnerApprovalPage({ routeSearch, session, navigat
               <button className="button secondary" onClick={confirmReject}>Reject</button>
             </>
           )}
-          <button className="button primary" onClick={() => navigate('/app')}>Open workspace <Icon name="arrow" /></button>
+          <button className="button primary" onClick={() => navigate('/app')}>Open checkspace <Icon name="arrow" /></button>
           <button className="button secondary" onClick={() => navigate('/partners')}>Partner page</button>
         </div>
       </section>
@@ -213,7 +213,7 @@ function PendingApplicationsView({ session, navigate }) {
           </dl>
         )}
         <div className="admin-approval-actions">
-          <button className="button primary" onClick={() => navigate('/app')}>Open workspace <Icon name="arrow" /></button>
+          <button className="button primary" onClick={() => navigate('/app')}>Open checkspace <Icon name="arrow" /></button>
           <button className="button secondary" onClick={() => navigate('/partners')}>Partner page</button>
         </div>
       </section>

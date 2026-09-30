@@ -21,7 +21,7 @@ const steps = [
   },
   {
     title: "4. Save it (optional)",
-    copy: "Guests can check without an account. Signed-in users can save checks to their workspace history, pin important sessions, and revisit them later.",
+    copy: "Guests can check without an account. Signed-in users can save checks to their checkspace history, pin important sessions, and revisit them later.",
   },
 ];
 

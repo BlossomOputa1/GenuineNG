@@ -6,7 +6,7 @@ const sections = [
   { id: "results", label: "Reading results" },
   { id: "code-check", label: "GenuineNG Code scan" },
   { id: "accounts", label: "Accounts and sign in" },
-  { id: "history", label: "Workspace history" },
+  { id: "history", label: "Checkspace history" },
   { id: "manufacturers", label: "Manufacturer portal" },
   { id: "troubleshooting", label: "Troubleshooting" },
   { id: "safety", label: "Safety and privacy" },
@@ -61,13 +61,13 @@ export default function HelpPage({ navigate }) {
               From the main page, choose a check mode and take or upload a
               photo. Guests can complete a full check without signing in, and
               nothing is saved. Create a free account from Sign in to save
-              checks to your workspace, pin sessions, and apply as a
+              checks to your checkspace, pin sessions, and apply as a
               manufacturer.
             </p>
             <ul>
               <li>No account needed for a one off product check.</li>
               <li>Sign in with email and password, or with Google.</li>
-              <li>Your workspace, history, and portal access need an account.</li>
+              <li>Your checkspace, history, and portal access need an account.</li>
             </ul>
           </section>
 
@@ -172,17 +172,17 @@ export default function HelpPage({ navigate }) {
                 set a new password.
               </li>
               <li>
-                <strong>Sign out.</strong> Use Sign out in your workspace menu,
+                <strong>Sign out.</strong> Use Sign out in your checkspace menu,
                 especially on shared devices.
               </li>
             </ul>
           </section>
 
           <section id="history" aria-labelledby="help-history-heading">
-            <span className="reason-tag">WORKSPACE HISTORY</span>
+            <span className="reason-tag">CHECKSPACE HISTORY</span>
             <h2 id="help-history-heading">Find every saved check.</h2>
             <p>
-              Signed-in checks are grouped into sessions in your workspace
+              Signed-in checks are grouped into sessions in your checkspace
               sidebar. Each session holds one check type only. Registry label
               and GenuineNG Code scans stay in separate sessions.
             </p>
@@ -252,7 +252,7 @@ export default function HelpPage({ navigate }) {
               <li>
                 <strong>Approval email missing.</strong> Check spam, confirm
                 the business email matches your account email, and look for the
-                in-app notification bell in your workspace.
+                in-app notification bell in your checkspace.
               </li>
             </ul>
           </section>

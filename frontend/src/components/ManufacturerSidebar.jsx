@@ -134,10 +134,10 @@ export default function ManufacturerSidebar({
             type="button"
             className="manufacturer-consumer-link"
             onClick={() => go("/app")}
-            title="Consumer workspace"
+            title="Consumer checkspace"
           >
             <Icon name="scan" size={17} />
-            <span>Consumer workspace</span>
+            <span>Consumer checkspace</span>
           </button>
 
           <div className="manufacturer-profile-card">
