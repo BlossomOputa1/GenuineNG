@@ -54,8 +54,16 @@ const meanings = [
 ];
 
 export default function AboutPage({ navigate }) {
+  function goBack() {
+    if (window.history.length > 1) window.history.back();
+    else navigate("/");
+  }
+
   return (
     <div className="about-page">
+      <button type="button" className="back-link" onClick={goBack}>
+        <Icon name="back" size={17} /> Back
+      </button>
       <section className="about-hero" aria-labelledby="about-heading">
         <span className="eyebrow">ABOUT GENUINENG</span>
         <h1 id="about-heading">Fake products shouldn&rsquo;t pass unnoticed.</h1>

@@ -11170,3 +11170,11 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== In-page Back link (Help / Contact / Privacy / Terms) ===== */
+.about-page > .back-link,
+.partner-application-copy > .back-link,
+.legal-card > .back-link {
+  margin-bottom: 0;
+  justify-self: start;
+}

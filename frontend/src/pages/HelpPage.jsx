@@ -13,8 +13,16 @@ const sections = [
 ];
 
 export default function HelpPage({ navigate }) {
+  function goBack() {
+    if (window.history.length > 1) window.history.back();
+    else navigate("/");
+  }
+
   return (
     <div className="about-page help-page">
+      <button type="button" className="back-link" onClick={goBack}>
+        <Icon name="back" size={17} /> Back
+      </button>
       <section className="about-hero" aria-labelledby="help-heading">
         <span className="eyebrow">HELP CENTER</span>
         <h1 id="help-heading">How to use GenuineNG.</h1>

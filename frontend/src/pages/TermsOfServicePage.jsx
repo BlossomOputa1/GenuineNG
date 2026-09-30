@@ -1,9 +1,17 @@
 import Icon from "../components/Icon";
 
 export default function TermsOfServicePage({ navigate }) {
+  function goBack() {
+    if (window.history.length > 1) window.history.back();
+    else navigate("/");
+  }
+
   return (
     <section className="placeholder-page legal-page">
       <div className="placeholder-card legal-card">
+        <button type="button" className="back-link" onClick={goBack}>
+          <Icon name="back" size={17} /> Back
+        </button>
         <span className="placeholder-icon">
           <Icon name="document" size={22} />
         </span>
