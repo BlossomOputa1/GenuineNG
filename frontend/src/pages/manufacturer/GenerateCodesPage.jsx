@@ -21,11 +21,11 @@ const dateLabel = (value) =>
         year: "numeric",
       }).format(new Date(value))
     : "-";
-const formatNumber = (value) => new Intl.NumberFormat('en-NG').format(value || 0);
-const dateLabel = (value) =>
-  value
-    ? new Intl.DateTimeFormat('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
-    : '-';
+// const formatNumber = (value) => new Intl.NumberFormat('en-NG').format(value || 0);
+// const dateLabel = (value) =>
+//   value
+//     ? new Intl.DateTimeFormat('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
+//     : '-';
 
 const UNIT_COST_NGN = 10;
 
@@ -71,12 +71,12 @@ export default function GenerateCodesPage() {
     } finally {
       setLoading(false);
     }
-      setBatchId((current) => current || next.find((item) => item.status !== 'generated')?.id || next[0]?.id || '');
-    } catch (problem) {
-      setError(problem.message || 'Could not load batches.');
-    } finally {
-      setLoading(false);
-    }
+    //   setBatchId((current) => current || next.find((item) => item.status !== 'generated')?.id || next[0]?.id || '');
+    // } catch (problem) {
+    //   setError(problem.message || 'Could not load batches.');
+    // } finally {
+    //   setLoading(false);
+    // }
   }
 
   useEffect(() => {
