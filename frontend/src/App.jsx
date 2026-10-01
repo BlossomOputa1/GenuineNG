@@ -8,7 +8,7 @@ import {
   supabase,
   supabaseConfigured,
 } from "./services/supabase";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 const readLocation = () => ({
   pathname: window.location.pathname,
