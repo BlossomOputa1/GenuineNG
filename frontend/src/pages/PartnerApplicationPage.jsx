@@ -113,11 +113,13 @@ function PartnerApplicationForm({ navigate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [emailWarning, setEmailWarning] = useState('');
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
-    setError("");
+    setError('');
+    setEmailWarning('');
     try {
       const response = await fetch(
         `${getApiBaseUrl()}/api/partner-applications`,
@@ -128,10 +130,17 @@ function PartnerApplicationForm({ navigate }) {
         },
       );
       const body = await response.json().catch(() => null);
-      if (!response.ok)
-        throw new Error(
-          body?.error?.message || "Could not submit the application.",
+      if (!response.ok) throw new Error(body?.error?.message || 'Could not submit the application.');
+      const email = body?.email;
+      const delivered = email ? Boolean(email.delivered) : Boolean(body?.adminEmailDelivered);
+      if (email && !delivered) {
+        const reason = String(email.reason || 'send_failed');
+        setEmailWarning(
+          reason === 'not_configured'
+            ? 'Application saved, but admin email is not configured yet. An administrator can still review it from the pending list.'
+            : 'Application saved, but the admin notification email could not be confirmed. An administrator can still review it from the pending list.',
         );
+      }
       setSubmitted(true);
       setForm(emptyForm);
     } catch (problem) {
@@ -172,6 +181,7 @@ function PartnerApplicationForm({ navigate }) {
               GenuineNG account so approval can activate your Manufacturer
               Portal and in-app notification.
             </p>
+            {emailWarning && <div className="inline-notice form-error"><Icon name="warning" size={17} /><p>{emailWarning}</p></div>}
             <button
               type="button"
               className="button secondary"

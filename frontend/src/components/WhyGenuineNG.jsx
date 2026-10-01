@@ -50,8 +50,7 @@ export default function WhyGenuineNG({ navigate }) {
           <button
             type="button"
             className="reason-contact-button"
-            aria-disabled="true"
-            title="Coming soon"
+            onClick={() => navigate("/contact")}
           >
             Contact us
             <span className="reason-contact-icon">

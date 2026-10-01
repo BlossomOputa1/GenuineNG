@@ -12,3 +12,7 @@ qr-only-test.zip
 export-test.zip
 test-extract.js
 test-full-flow.js
+backend/test-full-system-e2e.js
+backend/test-live-bmoni.js
+backend/test-bmoni-flow.js
+

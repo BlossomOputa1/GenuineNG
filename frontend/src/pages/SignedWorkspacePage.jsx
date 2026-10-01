@@ -207,7 +207,7 @@ export default function SignedWorkspacePage({
         type="button"
         className="workspace-mobile-toggle"
         onClick={() => setSidebarOpen(true)}
-        aria-label="Open workspace navigation"
+        aria-label="Open checkspace navigation"
       >
         <span />
         <span />
@@ -217,7 +217,7 @@ export default function SignedWorkspacePage({
         <button
           type="button"
           className="workspace-sidebar-scrim"
-          aria-label="Close workspace navigation"
+          aria-label="Close checkspace navigation"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -263,13 +263,13 @@ export default function SignedWorkspacePage({
             type="button"
             className="workspace-sidebar-close"
             onClick={() => setSidebarOpen(false)}
-            aria-label="Close workspace navigation"
+            aria-label="Close checkspace navigation"
           >
             <Icon name="close" size={20} />
           </button>
         </div>
 
-        <nav className="workspace-quick-nav" aria-label="Workspace navigation">
+        <nav className="workspace-quick-nav" aria-label="Checkspace navigation">
           <button
             type="button"
             className="workspace-new-check"
@@ -279,7 +279,11 @@ export default function SignedWorkspacePage({
             <Icon name="plus" size={17} />
             <span>New Check</span>
           </button>
-          <button type="button" title="Help" aria-disabled="true">
+          <button
+            type="button"
+            title="Help"
+            onClick={() => sidebarNavigate("/help")}
+          >
             <Icon name="question" size={17} />
             <span>Help</span>
           </button>
@@ -291,7 +295,11 @@ export default function SignedWorkspacePage({
             <Icon name="scan" size={17} />
             <span>Partners</span>
           </button>
-          <button type="button" title="Contact" aria-disabled="true">
+          <button
+            type="button"
+            title="Contact"
+            onClick={() => sidebarNavigate("/contact")}
+          >
             <Icon name="info" size={17} />
             <span>Contact</span>
           </button>

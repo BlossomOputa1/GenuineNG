@@ -1,30 +1,62 @@
-import compression from "compression";
-import cors from "cors";
-import "dotenv/config";
-import express from "express";
-import { rateLimit } from "express-rate-limit";
-import { errorHandler } from "./middleware/errorHandler.js";
-import extractLabelRouter from "./routes/extractLabel.js";
-import labelChecksRouter from "./routes/labelChecks.js";
-import manufacturerRouter from "./routes/manufacturer.js";
-import partnerApplicationsRouter from "./routes/partnerApplications.js";
-import scansRouter from "./routes/scans.js";
-import verifyCodeRouter from "./routes/verifyCode.js";
-import "./services/keyManager.js";
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import compression from 'compression';
+import { rateLimit } from 'express-rate-limit';
+
+import labelChecksRouter from './routes/labelChecks.js';
+import scansRouter from './routes/scans.js';
+import extractLabelRouter from './routes/extractLabel.js';
+import manufacturerRouter from './routes/manufacturer.js';
+import verifyCodeRouter from './routes/verifyCode.js';
+import bmoniRouter from './routes/bmoni.js'; // Layer 2 BMoni routes (VBA, offramp, webhooks)
+
+import './services/keyManager.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import partnerApplicationsRouter from './routes/partnerApplications.js';
+import { logEmailJsConfigWarnings } from './services/emailJsService.js';
+
+logEmailJsConfigWarnings();
+
+// BMoni sandbox default
+process.env.BMONI_BASE_URL =
+  process.env.BMONI_BASE_URL || 'https://embedded-dev.bmoni.com';
 
 const requiredEnvVars = [
-  "GEMINI_API_KEY",
-  "SUPABASE_URL",
-  "SUPABASE_PUBLISHABLE_KEY",
-  "SUPABASE_SECRET_KEY",
-  "GENUINENG_ED25519_PRIVATE_KEY",
-  "GENUINENG_ED25519_PUBLIC_KEY",
-  "GENUINENG_KEY_VERSION",
+  'GEMINI_API_KEY',
+  'SUPABASE_URL',
+  'SUPABASE_PUBLISHABLE_KEY',
+  'SUPABASE_SECRET_KEY',
+  'GENUINENG_ED25519_PRIVATE_KEY',
+  'GENUINENG_ED25519_PUBLIC_KEY',
+  'GENUINENG_KEY_VERSION',
+  // BMoni Layer 2 Configuration
+  'BMONI_API_KEY',
+  'BMONI_BASE_URL',
+  'BMONI_WEBHOOK_SECRET',
+  'BMONI_SECP256K1_PRIVATE_KEY',
 ];
+
 const missing = requiredEnvVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error(
     `Startup aborted. Missing required environment variables: ${missing.join(", ")}. Configure these in the Render service environment.`,
+  );
+  process.exit(1);
+}
+
+// const secpKey = process.env.BMONI_SECP256K1_PRIVATE_KEY;
+// if (secpKey && !/^0x[0-9a-fA-F]{64}$/.test(secpKey)) {
+//   console.error(
+//     'Startup aborted. BMONI_SECP256K1_PRIVATE_KEY must be a 32-byte hex string starting with 0x (66 characters total).'
+//   );
+//   process.exit(1);
+// }
+
+const secpKey = process.env.BMONI_SECP256K1_PRIVATE_KEY;
+if (secpKey && !/^0x[0-9a-fA-F]{64}$/.test(secpKey)) {
+  console.error(
+    'Startup aborted. BMONI_SECP256K1_PRIVATE_KEY must be a 32-byte hex string starting with 0x (66 characters total).'
   );
   process.exit(1);
 }
@@ -91,7 +123,17 @@ const manufacturerLimiter = rateLimit({
   },
 });
 
-app.use(express.json({ limit: "32kb" }));
+// Preserve raw body buffer for webhook signature validation
+app.use(
+  express.json({
+    limit: '32kb',
+    verify: (req, res, buf) => {
+      if (req.originalUrl.startsWith('/api/bmoni/webhook')) {
+        req.rawBody = buf;
+      }
+    },
+  })
+);
 app.use(compression());
 
 app.use((req, res, next) => {
@@ -109,17 +151,12 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Extraction keeps its existing /api/extract-label endpoint.
-app.use("/api/extract-label", apiLimiter);
-app.use("/api", extractLabelRouter);
-
-// Apply the general limiter once to each relevant route.
-app.use("/api/label-checks", apiLimiter, labelChecksRouter);
-app.use("/api/scans", apiLimiter, scansRouter);
-
-// Manufacturer requests use their dedicated limiter.
-if (process.env.MANUFACTURER_PORTAL_ENABLED !== "false") {
-  app.use("/api/manufacturer", manufacturerLimiter, manufacturerRouter);
+// Layer 1 routes
+app.use('/api/extract-label', apiLimiter, extractLabelRouter);
+app.use('/api/label-checks', apiLimiter, labelChecksRouter);
+app.use('/api/scans', scansRouter, apiLimiter);
+if (process.env.MANUFACTURER_PORTAL_ENABLED !== 'false') {
+  app.use('/api/manufacturer', manufacturerLimiter, manufacturerRouter);
 } else {
   app.use("/api/manufacturer", (_req, res) =>
     res.status(503).json({
@@ -130,9 +167,11 @@ if (process.env.MANUFACTURER_PORTAL_ENABLED !== "false") {
     }),
   );
 }
+app.use('/api/partner-applications', apiLimiter, partnerApplicationsRouter);
+app.use('/api/verify-code', apiLimiter, verifyCodeRouter);
 
-app.use("/api/partner-applications", apiLimiter, partnerApplicationsRouter);
-app.use("/api/verify-code", apiLimiter, verifyCodeRouter);
+// Layer 2 BMoni routes (Webhook endpoint inside bmoniRouter is not rate-limited by apiLimiter)
+app.use('/api/bmoni', bmoniRouter);
 
 app.use("/api", (req, res) => {
   return res.status(404).json({
@@ -141,8 +180,7 @@ app.use("/api", (req, res) => {
   });
 });
 
-// Catches multer's file-size/file-type errors before the general error
-// handler, since multer throws plain Errors rather than using statusCode.
+// Multer error boundary
 app.use((err, req, res, next) => {
   if (err.message?.includes("File too large")) {
     return res.status(400).json({
@@ -160,6 +198,6 @@ app.use((err, req, res, next) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () =>
-  console.log(`GenuineNG backend running on port ${PORT}`),
+const server = app.listen(PORT, () =>
+  console.log(`GenuineNG backend running on port ${PORT}`)
 );

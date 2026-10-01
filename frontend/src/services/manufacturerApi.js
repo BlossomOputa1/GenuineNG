@@ -7,13 +7,30 @@ const CACHE_TTL_MS = 30_000;
 const readCache = new Map();
 let authContextPromise = null;
 
-async function readJson(response) { return response.json().catch(() => null); }
-function toErrorMessage(response, body) { return getApiErrorMessage(body) || `Request failed (${response.status}).`; }
+export class ApiError extends Error {
+  constructor(message, status, code, details = null) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+async function readJson(response) {
+  return response.json().catch(() => null);
+}
+
+function toErrorMessage(response, body) {
+  return getApiErrorMessage(body) || `Request failed (${response.status}).`;
+}
 
 async function getAuthContext() {
   if (!authContextPromise) {
     authContextPromise = supabase.auth.getSession().then(({ data, error }) => {
-      if (error || !data?.session?.access_token || !data?.session?.user?.id) throw new Error('You need to be signed in to do that.');
+      if (error || !data?.session?.access_token || !data?.session?.user?.id) {
+        throw new ApiError('You need to be signed in to do that.', 401, 'UNAUTHENTICATED');
+      }
       return { userId: data.session.user.id, headers: { Authorization: `Bearer ${data.session.access_token}` } };
     }).finally(() => { authContextPromise = null; });
   }
@@ -39,10 +56,13 @@ async function authenticatedFetch(path, options = {}) {
     ...options,
     headers: { ...headers, ...(options.headers || {}) },
   });
+
   const body = options.expectBlob ? null : await readJson(response);
   if (!response.ok) {
     const errorBody = body || await readJson(response);
-    throw new Error(toErrorMessage(response, errorBody));
+    const code = errorBody?.error?.code || 'REQUEST_FAILED';
+    const message = toErrorMessage(response, errorBody);
+    throw new ApiError(message, response.status, code, errorBody?.error);
   }
   return { response, body };
 }
@@ -51,7 +71,7 @@ export function getProducts(signal) {
   return cachedRead('products', async ({ headers }) => {
     const response = await fetch(`${API_BASE_URL}/api/manufacturer/products`, { headers, signal });
     const body = await readJson(response);
-    if (!response.ok) throw new Error(toErrorMessage(response, body));
+    if (!response.ok) throw new ApiError(toErrorMessage(response, body), response.status, body?.error?.code);
     return body.products;
   });
 }
@@ -60,7 +80,7 @@ export function getBatches(signal) {
   return cachedRead('batches', async ({ headers }) => {
     const response = await fetch(`${API_BASE_URL}/api/manufacturer/batches`, { headers, signal });
     const body = await readJson(response);
-    if (!response.ok) throw new Error(toErrorMessage(response, body));
+    if (!response.ok) throw new ApiError(toErrorMessage(response, body), response.status, body?.error?.code);
     return body.batches;
   });
 }
@@ -69,7 +89,7 @@ export function getScanActivity(signal) {
   return cachedRead('scan-activity', async ({ headers }) => {
     const response = await fetch(`${API_BASE_URL}/api/manufacturer/scan-activity`, { headers, signal });
     const body = await readJson(response);
-    if (!response.ok) throw new Error(toErrorMessage(response, body));
+    if (!response.ok) throw new ApiError(toErrorMessage(response, body), response.status, body?.error?.code);
     return body.activity;
   });
 }
@@ -125,7 +145,7 @@ export async function downloadBatchExport(batchId, format) {
   const response = await fetch(`${API_BASE_URL}/api/manufacturer/batches/${encodeURIComponent(batchId)}/export?format=${encodeURIComponent(format)}`, { headers });
   if (!response.ok) {
     const body = await readJson(response);
-    throw new Error(toErrorMessage(response, body));
+    throw new ApiError(toErrorMessage(response, body), response.status, body?.error?.code);
   }
   const blob = await response.blob();
   const disposition = response.headers.get('Content-Disposition') || '';
@@ -133,5 +153,60 @@ export async function downloadBatchExport(batchId, format) {
   const filename = match ? match[1] : `genuineng-${format}`;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+// Add to frontend/src/services/manufacturerApi.js
+
+export async function linkBmoniAccount({ phoneNumber, bmoniTag }) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE_URL}/api/manufacturer/link-bmoni`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ phoneNumber, bmoniTag }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.error?.message || 'Failed to link BMoni account.');
+  }
+  return body;
+}
+
+export async function sandboxSettleInvoice(reference) {
+  // Retrieve token directly from the active Supabase session
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || localStorage.getItem('token');
+
+  const res = await fetch(`${API_BASE_URL}/api/manufacturer/sandbox-settle`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reference }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.error?.message || 'Could not verify test settlement.');
+  }
+  return body;
+}
+
+export async function requestBatchVba(batchId, amount, signal) {
+  const { body } = await authenticatedFetch('/api/manufacturer/vba', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ batchId, amount }),
+    signal,
+  });
+  return body.data || body;
 }

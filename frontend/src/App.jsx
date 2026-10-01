@@ -8,6 +8,7 @@ import {
   supabase,
   supabaseConfigured,
 } from "./services/supabase";
+import { Analytics } from "@vercel/analytics/react";
 
 const readLocation = () => ({
   pathname: window.location.pathname,
@@ -19,19 +20,12 @@ const headerNavItems = [
   { label: "Partners", path: "/partners" },
   { label: "Contact", path: "/contact" },
 ];
-const deferredPaths = new Set(["/about", "/contact", "/help"]);
-
-function isDeferredPath(path) {
-  const pathname = path.split(/[?#]/)[0].replace(/\/+$/, "") || "/";
-  return deferredPaths.has(pathname);
-}
 const productAlertText =
   "Counterfeit products can copy real-looking label details. GenuineNG makes printed information easier to read, review and check while being clear about what a label check can and cannot prove.";
 
 const GuestScanPage = lazy(() => import("./pages/GuestScanPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const Layer2ScanPage = lazy(() => import("./pages/Layer2ScanPage"));
-const PlaceholderPage = lazy(() => import("./pages/PlaceholderPage"));
 const PartnerApplicationPage = lazy(
   () => import("./pages/PartnerApplicationPage"),
 );
@@ -39,6 +33,11 @@ const AdminPartnerApprovalPage = lazy(
   () => import("./pages/AdminPartnerApprovalPage"),
 );
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsOfServicePage = lazy(() => import("./pages/TermsOfServicePage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const HelpPage = lazy(() => import("./pages/HelpPage"));
 const ScanPage = lazy(() => import("./pages/ScanPage"));
 const SignedWorkspacePage = lazy(() => import("./pages/SignedWorkspacePage"));
 const ManufacturerPortalPage = lazy(
@@ -75,6 +74,7 @@ export default function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <AppContent />
+      <Analytics />
     </Suspense>
   );
 }
@@ -98,7 +98,6 @@ function AppContent() {
 
   function navigate(path, replace = false) {
     if (!path.startsWith("/") || path.startsWith("//")) return;
-    if (isDeferredPath(path)) return;
 
     window.history[replace ? "replaceState" : "pushState"]({}, "", path);
     setRoute(readLocation());
@@ -200,11 +199,13 @@ function AppContent() {
                 "/code-scan": "GenuineNG Code",
                 "/login": "Sign In",
                 "/reset-password": "Reset Password",
-                "/app": "Workspace",
+                "/app": "Checkspace",
                 "/about": "About",
                 "/help": "Help",
                 "/partners": "Partners",
                 "/contact": "Contact",
+                "/privacy": "Privacy Policy",
+                "/terms": "Terms of Service",
               }[route.pathname] ||
               (route.pathname === "/" ? "" : "Page Not Found");
     document.title = identifier ? `GenuineNG - ${identifier}` : "GenuineNG";
@@ -242,11 +243,6 @@ function AppContent() {
   const navIsActive = (path) =>
     path === "/" ? route.pathname === "/" : route.pathname === path;
   function navClick(event, path) {
-    if (isDeferredPath(path)) {
-      event.preventDefault();
-      return;
-    }
-
     if (
       event.button !== 0 ||
       event.metaKey ||
@@ -462,7 +458,7 @@ function AppContent() {
                   href="/app"
                   onClick={(event) => navClick(event, "/app")}
                 >
-                  Workspace
+                  Checkspace
                   <span className="header-action-icon">
                     <Icon name="arrow" size={14} />
                   </span>
@@ -535,9 +531,7 @@ function AppContent() {
                 <a
                   key={item.path}
                   className={navIsActive(item.path) ? "active" : ""}
-                  href={isDeferredPath(item.path) ? undefined : item.path}
-                  aria-disabled={isDeferredPath(item.path) ? true : undefined}
-                  title={isDeferredPath(item.path) ? "Coming soon" : undefined}
+                  href={item.path}
                   onClick={(event) => navClick(event, item.path)}
                 >
                   {item.label}
@@ -562,7 +556,7 @@ function AppContent() {
                     href="/app"
                     onClick={(event) => navClick(event, "/app")}
                   >
-                    Workspace
+                    Checkspace
                     <span className="header-action-icon">
                       <Icon name="arrow" size={14} />
                     </span>
@@ -659,8 +653,16 @@ function AppContent() {
             session={session}
             authLoading={authLoading}
           />
-        ) : ["/about", "/help", "/contact"].includes(route.pathname) ? (
-          <PlaceholderPage page={route.pathname.slice(1)} navigate={navigate} />
+        ) : route.pathname === "/about" ? (
+          <AboutPage navigate={navigate} />
+        ) : route.pathname === "/help" ? (
+          <HelpPage navigate={navigate} />
+        ) : route.pathname === "/contact" ? (
+          <ContactPage navigate={navigate} />
+        ) : route.pathname === "/privacy" ? (
+          <PrivacyPolicyPage navigate={navigate} />
+        ) : route.pathname === "/terms" ? (
+          <TermsOfServicePage navigate={navigate} />
         ) : (
           <div className="empty-state not-found-state">
             <span className="eyebrow">404</span>
