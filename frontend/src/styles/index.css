@@ -11178,3 +11178,24 @@ body {
   margin-bottom: 0;
   justify-self: start;
 }
+
+/* ===== Google sign-in (login page, below submit button) ===== */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #54635b;
+  font-size: 0.8rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1 1 0;
+  border-top: 1px solid rgba(22, 61, 34, 0.14);
+}
+.auth-google-button {
+  gap: 10px;
+}
+.auth-google-button svg {
+  flex: 0 0 auto;
+}

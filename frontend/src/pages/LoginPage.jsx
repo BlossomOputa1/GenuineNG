@@ -3,10 +3,34 @@ import AuthMascots from "../components/AuthMascots";
 import Icon from "../components/Icon";
 import {
   sendPasswordReset,
+  signInWithGoogle,
   signInWithPassword,
   signUpWithPassword,
 } from "../services/authService";
 import { supabaseConfigured } from "../services/supabase";
+
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.5 12.3c0-.9-.1-1.5-.3-2.3H12v4.5h6.5c-.1 1.1-.8 2.7-2.4 3.8l-.1.1 3.5 2.7.2.1c2.2-2 3.8-5 3.8-8.9z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.8-2.9c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.8-5l-.1.1-3.6 2.8-.1.1C3.4 21.4 7.4 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-.1-.1-3.6-2.8-.1.1C.5 8.6 0 10.2 0 12s.5 3.4 1.4 4.9l3.8-2.5z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.6c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.4 0 3.4 2.6 1.4 6.8l3.8 2.9c1-2.9 3.7-5.1 6.8-5.1z"
+      />
+    </svg>
+  );
+}
 
 export default function LoginPage({ session, navigate }) {
   const [mode, setMode] = useState("signin");
@@ -16,6 +40,7 @@ export default function LoginPage({ session, navigate }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [activeField, setActiveField] = useState("");
   const [busy, setBusy] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -48,6 +73,18 @@ export default function LoginPage({ session, navigate }) {
       setError(problem.message || "Authentication failed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function continueWithGoogle() {
+    setOauthBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await signInWithGoogle();
+    } catch (problem) {
+      setError(problem.message || "Google sign-in failed.");
+      setOauthBusy(false);
     }
   }
 
@@ -281,6 +318,20 @@ export default function LoginPage({ session, navigate }) {
                     ? "Create account"
                     : "Sign in"}{" "}
                 {!busy && <Icon name="arrow" />}
+              </button>
+
+              <div className="auth-divider" aria-hidden="true">
+                <span>or</span>
+              </div>
+
+              <button
+                type="button"
+                className="button secondary full-width auth-google-button"
+                onClick={continueWithGoogle}
+                disabled={busy || oauthBusy || !supabaseConfigured}
+              >
+                <GoogleMark />
+                {oauthBusy ? "Opening Google…" : "Continue with Google"}
               </button>
             </form>
 
