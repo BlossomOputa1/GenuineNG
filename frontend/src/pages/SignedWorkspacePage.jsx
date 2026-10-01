@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "../components/Icon";
+import ContactForm from "../components/ContactForm";
 import LabelCheckFlow from "../components/LabelCheckFlow";
 import NotificationBell from "../components/NotificationBell";
 import {
@@ -53,6 +54,43 @@ export default function SignedWorkspacePage({
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [newCheckVersion, setNewCheckVersion] = useState(0);
+  const [contactOpen, setContactOpen] = useState(false);
+  const contactButtonRef = useRef(null);
+  const contactDialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!contactOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    contactDialogRef.current?.querySelector("input")?.focus();
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setContactOpen(false);
+        contactButtonRef.current?.focus();
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(contactDialogRef.current?.querySelectorAll(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+      ) || [])];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contactOpen]);
 
   const threadId = useMemo(() => {
     const match = routePath.match(/^\/app\/([^/]+)$/);
@@ -298,7 +336,11 @@ export default function SignedWorkspacePage({
           <button
             type="button"
             title="Contact"
-            onClick={() => sidebarNavigate("/contact")}
+            ref={contactButtonRef}
+            onClick={() => {
+              setSidebarOpen(false);
+              setContactOpen(true);
+            }}
           >
             <Icon name="info" size={17} />
             <span>Contact</span>
@@ -507,6 +549,45 @@ export default function SignedWorkspacePage({
           )}
         </div>
       </main>
+      {contactOpen && (
+        <div
+          className="contact-dialog-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setContactOpen(false);
+              contactButtonRef.current?.focus();
+            }
+          }}
+        >
+          <section
+            ref={contactDialogRef}
+            className="partner-application-card contact-card contact-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contact-form-title"
+          >
+            <div className="contact-dialog-header">
+              <span className="contact-dialog-brand">
+                <img src="/icons/favicon.svg" alt="" width="32" height="32" />
+                Genuine<span>NG</span>
+              </span>
+              <button
+                type="button"
+                className="contact-dialog-close"
+                aria-label="Close contact form"
+                onClick={() => {
+                  setContactOpen(false);
+                  contactButtonRef.current?.focus();
+                }}
+              >
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+            <ContactForm />
+          </section>
+        </div>
+      )}
     </div>
   );
 }

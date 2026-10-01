@@ -1,306 +1,242 @@
 import Icon from "../components/Icon";
 
-const sections = [
-  { id: "start", label: "Getting started" },
-  { id: "label-check", label: "Registry label check" },
-  { id: "results", label: "Reading results" },
-  { id: "code-check", label: "GenuineNG Code scan" },
-  { id: "accounts", label: "Accounts and sign in" },
-  { id: "history", label: "Checkspace history" },
-  { id: "manufacturers", label: "Manufacturer portal" },
+const topics = [
+  { id: "start", label: "Get started" },
+  { id: "label-check", label: "Label check" },
+  { id: "results", label: "Results" },
+  { id: "code-check", label: "GenuineNG Code" },
+  { id: "accounts", label: "Accounts" },
+  { id: "history", label: "History" },
+  { id: "manufacturers", label: "Manufacturers" },
   { id: "troubleshooting", label: "Troubleshooting" },
-  { id: "safety", label: "Safety and privacy" },
+  { id: "safety", label: "Safety" },
+];
+
+const labelSteps = [
+  {
+    icon: "camera",
+    title: "Capture the label",
+    text: "Use Snap to open your camera, or Upload to choose a JPG, PNG, or WebP photo under 12 MB. You can add a second photo of the other side of the pack.",
+  },
+  {
+    icon: "scan",
+    title: "Read the details",
+    text: "GenuineNG reads the product name, manufacturer, NAFDAC registration number, and expiry date from the photos.",
+  },
+  {
+    icon: "edit",
+    title: "Review and correct",
+    text: "Confirm the extracted fields before checking. Partial information is fine; we check only what the label supports.",
+  },
+  {
+    icon: "check",
+    title: "Understand the result",
+    text: "We compare available registration details and check the expiry date, then separate matches, warnings, and unknowns.",
+  },
+];
+
+const resultTypes = [
+  { icon: "check", title: "Matched", text: "A detail lined up with an available record. A match alone does not prove that the unit is genuine." },
+  { icon: "warning", title: "Warning", text: "A detail needs attention, such as an expired date, a missing number, or unclear text." },
+  { icon: "info", title: "Unverified", text: "There was not enough reliable information to complete this check. It is neither a pass nor a fail." },
+  { icon: "minus", title: "Not checked", text: "The check was skipped because the needed field was not provided." },
+];
+
+const issues = [
+  { title: "My camera will not open", text: "Allow camera access in your browser settings, then close any other app using the camera. You can also upload a photo instead." },
+  { title: "The label text will not read", text: "Retake the photo in good light with less glare. Keep the whole label in frame, or correct the details in the review step." },
+  { title: "My photo was rejected", text: "Use a JPG, PNG, or WebP image under 12 MB. Convert HEIC photos to JPG first." },
+  { title: "The service says unavailable or offline", text: "Live checks and history saving need a connection. Wait for the connection banner to clear, then try again." },
+  { title: "I did not receive an approval email", text: "Check spam, make sure your business email matches your account email, and check notifications in your checkspace." },
 ];
 
 export default function HelpPage({ navigate }) {
-  function goBack() {
-    if (window.history.length > 1) window.history.back();
-    else navigate("/");
-  }
-
   return (
-    <div className="about-page help-page">
-      <button type="button" className="back-link" onClick={goBack}>
-        <Icon name="back" size={17} /> Back
-      </button>
-      <section className="about-hero" aria-labelledby="help-heading">
-        <span className="eyebrow">HELP CENTER</span>
-        <h1 id="help-heading">How to use GenuineNG.</h1>
-        <p className="about-lead">
-          Everything below matches what you see in the app today. Start with a
-          guest check, create an account to save history, or apply as a
-          manufacturer partner when you are ready.
-        </p>
-        <div className="about-hero-actions">
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => navigate("/")}
-          >
-            Start checking <Icon name="arrow" size={16} />
-          </button>
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => navigate("/contact")}
-          >
-            Contact us
-          </button>
+    <article className="help-story-page">
+      <section className="help-story-hero" aria-labelledby="help-heading">
+        <div className="about-story-inner">
+          <span className="about-story-kicker">GENUINENG HELP CENTER</span>
+          <h1 id="help-heading">A clearer way <span>to check.</span></h1>
+          <p>From your first label photo to understanding a result, here is how each part of GenuineNG works.</p>
+          <button type="button" className="button primary" onClick={() => navigate("/#scan-workspace")}>Start checking <Icon name="arrow" size={16} /></button>
         </div>
       </section>
 
-      <div className="help-layout">
-        <nav className="help-toc" aria-label="Help topics">
-          <strong>On this page</strong>
-          <ol>
-            {sections.map((section) => (
-              <li key={section.id}>
-                <a href={`#${section.id}`}>{section.label}</a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        <div className="help-docs">
-          <section id="start" aria-labelledby="help-start-heading">
-            <span className="reason-tag">GETTING STARTED</span>
-            <h2 id="help-start-heading">Guest or account. Your choice.</h2>
-            <p>
-              From the main page, choose a check mode and take or upload a
-              photo. Guests can complete a full check without signing in, and
-              nothing is saved. Create a free account from Sign in to save
-              checks to your checkspace, pin sessions, and apply as a
-              manufacturer.
-            </p>
-            <ul>
-              <li>No account needed for a one off product check.</li>
-              <li>Sign in with email and password, or with Google.</li>
-              <li>Your checkspace, history, and portal access need an account.</li>
-            </ul>
-          </section>
-
-          <section id="label-check" aria-labelledby="help-label-heading">
-            <span className="reason-tag">REGISTRY LABEL CHECK</span>
-            <h2 id="help-label-heading">Check a printed label in 4 steps.</h2>
-            <ol>
-              <li>
-                <strong>Capture the label.</strong> Use Snap to open your
-                camera, or Upload to pick a JPG, PNG, or WebP photo under
-                12 MB. You can add a second photo for the other side of the
-                pack.
-              </li>
-              <li>
-                <strong>Read the text.</strong> GenuineNG extracts the product
-                name, manufacturer, NAFDAC registration number, and expiry
-                date on your device and backend.
-              </li>
-              <li>
-                <strong>Review before verifying.</strong> Confirm or correct
-                each field in the review dialog. Partial information is valid.
-                GenuineNG checks only what the label supports.
-              </li>
-              <li>
-                <strong>Run verification.</strong> We compare the registration
-                number with available records and validate the expiry date,
-                then show the result with copy and listen options.
-              </li>
-            </ol>
-            <p>
-              Photo tips. Lay the pack flat in good light, fill the frame with
-              the label, avoid glare and shadows, and hold the camera steady.
-              If your phone saves HEIC photos, take a new photo here or convert
-              it to JPG first.
-            </p>
-          </section>
-
-          <section id="results" aria-labelledby="help-results-heading">
-            <span className="reason-tag">READING RESULTS</span>
-            <h2 id="help-results-heading">What each status means.</h2>
-            <ul>
-              <li>
-                <strong>Matched.</strong> The detail lined up with the
-                available record. Example. The registration number exists and
-                the expiry date is valid.
-              </li>
-              <li>
-                <strong>Warning.</strong> Something needs attention. Example.
-                The product is expired, the number was not found, or the text
-                was unclear. Do not use a product you doubt.
-              </li>
-              <li>
-                <strong>Unverified.</strong> There was not enough reliable
-                information to finish that check. It is not a pass or a fail.
-              </li>
-              <li>
-                <strong>Not checked.</strong> That item was skipped because the
-                field was missing.
-              </li>
-            </ul>
-            <p>
-              Every result states what matched, what raised a warning, and what
-              could not be checked. A GenuineNG result is not NAFDAC
-              certification and not proof a product is genuine or fake.
-            </p>
-          </section>
-
-          <section id="code-check" aria-labelledby="help-code-heading">
-            <span className="reason-tag">GENUINENG CODE SCAN</span>
-            <h2 id="help-code-heading">Scan a partner unit code.</h2>
-            <p>
-              Switch to GenuineNG Code mode on the main page, point your camera
-              at the QR code or upload a clear photo of it. Signed-in users can
-              save code scans to history. Results show a Genuine or Not Genuine
-              verdict with product, manufacturer, batch, and unit details.
-            </p>
-            <ul>
-              <li>First public scan. The first time that unit is scanned.</li>
-              <li>Previously scanned. That unit was scanned before.</li>
-              <li>Reuse limit reached. The unit was deactivated for safety.</li>
-              <li>Revoked. The unit was already deactivated.</li>
-            </ul>
-          </section>
-
-          <section id="accounts" aria-labelledby="help-accounts-heading">
-            <span className="reason-tag">ACCOUNTS AND SIGN IN</span>
-            <h2 id="help-accounts-heading">Create, sign in, reset.</h2>
-            <ul>
-              <li>
-                <strong>Create account.</strong> Open Sign in, switch to Create
-                account, enter your full name, email, and a password of at
-                least 8 characters. Confirm your email if asked, then sign in.
-              </li>
-              <li>
-                <strong>Sign in.</strong> Use the same email and password, or
-                Continue with Google. You stay signed in on your device until
-                you sign out.
-              </li>
-              <li>
-                <strong>Forgot password.</strong> Enter your email on the sign
-                in page, choose Forgot password, then open the reset link to
-                set a new password.
-              </li>
-              <li>
-                <strong>Sign out.</strong> Use Sign out in your checkspace menu,
-                especially on shared devices.
-              </li>
-            </ul>
-          </section>
-
-          <section id="history" aria-labelledby="help-history-heading">
-            <span className="reason-tag">CHECKSPACE HISTORY</span>
-            <h2 id="help-history-heading">Find every saved check.</h2>
-            <p>
-              Signed-in checks are grouped into sessions in your checkspace
-              sidebar. Each session holds one check type only. Registry label
-              and GenuineNG Code scans stay in separate sessions.
-            </p>
-            <ul>
-              <li>Open any session to revisit its saved results.</li>
-              <li>Rename a session to remember what it was for.</li>
-              <li>Pin important sessions to the top of the list.</li>
-              <li>Delete a session to remove it and its scans.</li>
-            </ul>
-          </section>
-
-          <section id="manufacturers" aria-labelledby="help-makers-heading">
-            <span className="reason-tag">MANUFACTURER PORTAL</span>
-            <h2 id="help-makers-heading">For partner companies.</h2>
-            <ol>
-              <li>
-                <strong>Apply.</strong> Open Partners, submit your company
-                name, contact person, business email, and phone number. Use the
-                same business email for your GenuineNG account.
-              </li>
-              <li>
-                <strong>Get approved.</strong> Applications are reviewed
-                manually. You receive an approval email plus an in-app
-                notification.
-              </li>
-              <li>
-                <strong>Manage products.</strong> Register products and
-                batches, generate signed unit QR codes, export production
-                files, and view scan activity per batch.
-              </li>
-            </ol>
-            <div className="about-hero-actions">
-              <button
-                type="button"
-                className="button secondary"
-                onClick={() => navigate("/partners")}
-              >
-                Open Partners page
-              </button>
-            </div>
-          </section>
-
-          <section id="troubleshooting" aria-labelledby="help-fix-heading">
-            <span className="reason-tag">TROUBLESHOOTING</span>
-            <h2 id="help-fix-heading">Fix common problems.</h2>
-            <ul>
-              <li>
-                <strong>Camera will not open.</strong> Allow camera access for
-                GenuineNG in your browser settings and close other apps using
-                the camera. On desktop you can use an integrated, USB, or phone
-                camera app.
-              </li>
-              <li>
-                <strong>Label text will not read.</strong> Retake the photo
-                with better light and less glare, or type the details manually
-                when offered. Blurry or cropped text cannot be verified.
-              </li>
-              <li>
-                <strong>Photo rejected.</strong> Use JPG, PNG, or WebP under
-                12 MB. Convert HEIC photos first.
-              </li>
-              <li>
-                <strong>Service unavailable or offline.</strong> Live checks
-                and history saving need a connection. Wait for the connection
-                banner to clear, then try again.
-              </li>
-              <li>
-                <strong>Approval email missing.</strong> Check spam, confirm
-                the business email matches your account email, and look for the
-                in-app notification bell in your checkspace.
-              </li>
-            </ul>
-          </section>
-
-          <section id="safety" aria-labelledby="help-safety-heading">
-            <span className="reason-tag">SAFETY AND PRIVACY</span>
-            <h2 id="help-safety-heading">Check carefully. Stay private.</h2>
-            <p>
-              Counterfeit products can copy real-looking details, so treat any
-              warning seriously. If you doubt a product, do not use it. Ask a
-              pharmacist, the manufacturer, or NAFDAC. Guest checks are not
-              saved. Signed-in history is visible only to you, and you can
-              request deletion at contact.genuineng@gmail.com.
-            </p>
-            <div className="about-links">
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => navigate("/privacy")}
-              >
-                Privacy Policy <Icon name="arrow" size={15} />
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => navigate("/terms")}
-              >
-                Terms of Service <Icon name="arrow" size={15} />
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => navigate("/contact")}
-              >
-                Contact us <Icon name="arrow" size={15} />
-              </button>
-            </div>
-          </section>
+      <nav className="help-story-topics" aria-label="Help topics">
+        <div className="about-story-inner">
+          {topics.map((topic) => <a key={topic.id} href={`#${topic.id}`}>{topic.label}</a>)}
         </div>
-      </div>
-    </div>
+      </nav>
+
+      <section className="help-story-section help-story-start" id="start" aria-labelledby="help-start-heading">
+        <div className="about-story-inner help-story-split">
+          <div className="help-story-copy">
+            <span className="about-story-kicker">01 / GETTING STARTED</span>
+            <h2 id="help-start-heading">Check as a guest. Save with an account.</h2>
+            <p>From the main page, choose Registry label check or GenuineNG Code. You can check a product without signing in. Create a free account when you want to keep your checks in Checkspace.</p>
+            <button type="button" className="help-story-link" onClick={() => navigate("/#scan-workspace")}>Go to the checks <Icon name="arrow" size={17} /></button>
+          </div>
+          <div className="help-story-choice-grid" aria-label="Ways to get started">
+            <div className="help-story-choice-card">
+              <span className="help-story-icon"><Icon name="scan" size={25} /></span>
+              <small>QUICK CHECK</small>
+              <h3>Continue as a guest</h3>
+              <p>Complete a check without an account. Guest results are not saved to Checkspace.</p>
+            </div>
+            <div className="help-story-choice-card">
+              <span className="help-story-icon"><Icon name="history" size={25} /></span>
+              <small>YOUR CHECKSPACE</small>
+              <h3>Sign in to save</h3>
+              <p>Keep your results, organize sessions, and access partner features if approved.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-label" id="label-check" aria-labelledby="help-label-heading">
+        <div className="about-story-inner">
+          <div className="help-story-heading">
+            <span className="about-story-kicker">02 / REGISTRY LABEL CHECK</span>
+            <h2 id="help-label-heading">From photo to a useful answer.</h2>
+            <p>Four simple steps. Review the label details before any check runs.</p>
+          </div>
+          <div className="help-story-steps">
+            {labelSteps.map((step, index) => (
+              <div className="help-story-step" key={step.title}>
+                <span className="help-story-step-count">0{index + 1}</span>
+                <span className="help-story-icon"><Icon name={step.icon} size={23} /></span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="help-story-app-preview" aria-label="Illustration of the label capture screen">
+            <span className="help-story-preview-caption">IN THE APP / LABEL CAPTURE</span>
+            <div className="help-story-preview-tabs"><strong>Scan registry label</strong><span>Scan GenuineNG code</span></div>
+            <div className="help-story-preview-viewfinder">
+              <Icon name="scan" size={38} />
+              <strong>Start with the front label.</strong>
+              <p>Snap or upload the front of the product. We’ll ask for the back image next.</p>
+            </div>
+            <div className="help-story-preview-actions"><span><Icon name="camera" size={17} /> Open camera</span><span><Icon name="upload" size={17} /> Upload a photo</span></div>
+          </div>
+          <p className="help-story-tip"><Icon name="info" size={19} /> <span><strong>Photo tip:</strong> Lay the pack flat in good light, fill the frame with the label, and avoid shadows or glare. Convert HEIC photos to JPG before uploading.</span></p>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-results" id="results" aria-labelledby="help-results-heading">
+        <div className="about-story-inner">
+          <div className="help-story-heading">
+            <span className="about-story-kicker">03 / READING RESULTS</span>
+            <h2 id="help-results-heading">Know what the result really says.</h2>
+            <p>Each detail gets its own status, so you can see what was found and what still needs a closer look.</p>
+          </div>
+          <div className="help-story-result-grid">
+            {resultTypes.map((item) => (
+              <div className="help-story-result-card" key={item.title}>
+                <span className="help-story-icon"><Icon name={item.icon} size={23} /></span>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </div>
+            ))}
+          </div>
+          <p className="help-story-caveat">A GenuineNG label check is not NAFDAC certification or proof that a product is genuine or fake. If you doubt a product, do not use it.</p>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-code" id="code-check" aria-labelledby="help-code-heading">
+        <div className="about-story-inner help-story-split">
+          <div className="help-story-copy">
+            <span className="about-story-kicker">04 / GENUINENG CODE</span>
+            <h2 id="help-code-heading">One code for one unit.</h2>
+            <p>Switch to GenuineNG Code on the main page. Point your camera at a partner unit’s QR code or upload a clear photo. The check reads its signature and the unit’s scan signals. Signed-in users can save code scans to history.</p>
+            <button type="button" className="help-story-link" onClick={() => navigate("/#scan-workspace")}>Try a code scan <Icon name="arrow" size={17} /></button>
+          </div>
+          <div className="help-story-code-panel" aria-label="Possible code scan signals">
+            <span className="help-story-code-mark"><Icon name="qr" size={52} /></span>
+            <strong>What the scan can show</strong>
+            <ul>
+              <li><span>First public scan</span><small>This unit has not been publicly scanned before.</small></li>
+              <li><span>Previously scanned</span><small>A previous scan has been recorded.</small></li>
+              <li><span>Reuse limit reached</span><small>The unit can no longer be used for a fresh check.</small></li>
+              <li><span>Revoked</span><small>The code has been deactivated.</small></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-account" id="accounts" aria-labelledby="help-accounts-heading">
+        <div className="about-story-inner">
+          <div className="help-story-heading">
+            <span className="about-story-kicker">05 / ACCOUNTS</span>
+            <h2 id="help-accounts-heading">Your checks, when you need them.</h2>
+          </div>
+          <div className="help-story-account-grid">
+            <div><span className="help-story-icon"><Icon name="users" size={22} /></span><h3>Create an account</h3><p>Open Sign in, choose Create account, then enter your name, email, and a password of at least eight characters. Confirm your email if asked.</p></div>
+            <div><span className="help-story-icon"><Icon name="lock" size={22} /></span><h3>Sign in or reset</h3><p>Use your email and password or Continue with Google. For a forgotten password, use the reset link on the sign-in page.</p></div>
+            <div><span className="help-story-icon"><Icon name="logout" size={22} /></span><h3>Sign out on shared devices</h3><p>Use Sign out in your Checkspace menu when you are finished, especially on a phone or computer others use.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-history" id="history" aria-labelledby="help-history-heading">
+        <div className="about-story-inner help-story-split">
+          <div className="help-story-copy">
+            <span className="about-story-kicker">06 / CHECKSPACE HISTORY</span>
+            <h2 id="help-history-heading">Keep the checks that matter.</h2>
+            <p>Signed-in checks are grouped into sessions in your Checkspace sidebar. Registry label checks and GenuineNG Code scans live in separate sessions.</p>
+          </div>
+          <div className="help-story-history-list">
+            <p><Icon name="eye" size={19} /> Reopen a session to revisit saved results.</p>
+            <p><Icon name="edit" size={19} /> Rename sessions so you remember what they contain.</p>
+            <p><Icon name="pin" size={19} /> Pin important sessions to the top.</p>
+            <p><Icon name="trash" size={19} /> Delete a session and its scans when you no longer need it.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-makers" id="manufacturers" aria-labelledby="help-makers-heading">
+        <div className="about-story-inner">
+          <div className="help-story-heading">
+            <span className="about-story-kicker">07 / MANUFACTURER PORTAL</span>
+            <h2 id="help-makers-heading">Protect the products you make.</h2>
+            <p>Partner companies can issue signed codes for product units and see scan activity.</p>
+          </div>
+          <div className="help-story-maker-grid">
+            <div><span>01</span><h3>Apply</h3><p>Submit your company and contact details on the Partners page. Use the same business email for your GenuineNG account.</p></div>
+            <div><span>02</span><h3>Get approved</h3><p>Applications are reviewed manually. Watch for an approval email and an in-app notification.</p></div>
+            <div><span>03</span><h3>Manage units</h3><p>Register products and batches, generate signed QR codes, export production files, and review scan activity.</p></div>
+          </div>
+          <button type="button" className="button primary" onClick={() => navigate("/partners")}>Explore partnerships <Icon name="arrow" size={16} /></button>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-fixes" id="troubleshooting" aria-labelledby="help-fix-heading">
+        <div className="about-story-inner help-story-split">
+          <div className="help-story-copy">
+            <span className="about-story-kicker">08 / TROUBLESHOOTING</span>
+            <h2 id="help-fix-heading">Something not working?</h2>
+            <p>Start with these common fixes. If you are still stuck, send us a message.</p>
+            <button type="button" className="help-story-link" onClick={() => navigate("/contact")}>Contact us <Icon name="arrow" size={17} /></button>
+          </div>
+          <div className="help-story-questions">
+            {issues.map((issue) => <details key={issue.title}><summary>{issue.title}</summary><p>{issue.text}</p></details>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="help-story-section help-story-safety" id="safety" aria-labelledby="help-safety-heading">
+        <div className="about-story-inner">
+          <span className="about-story-kicker">09 / SAFETY AND PRIVACY</span>
+          <h2 id="help-safety-heading">Check carefully. Stay private.</h2>
+          <p>Counterfeit products can copy real-looking label details. If you doubt a product, do not use it; ask a pharmacist, the manufacturer, or NAFDAC. Guest checks are not saved, and signed-in history is visible only to you. You can request deletion at contact.genuineng@gmail.com.</p>
+          <div className="help-story-footer-links">
+            <button type="button" onClick={() => navigate("/privacy")}>Privacy Policy <Icon name="arrow" size={16} /></button>
+            <button type="button" onClick={() => navigate("/terms")}>Terms of Service <Icon name="arrow" size={16} /></button>
+            <button type="button" onClick={() => navigate("/contact")}>Contact us <Icon name="arrow" size={16} /></button>
+          </div>
+        </div>
+      </section>
+    </article>
   );
 }

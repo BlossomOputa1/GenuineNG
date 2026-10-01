@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import AuthMascots from "../components/AuthMascots";
 import Icon from "../components/Icon";
 import {
   sendPasswordReset,
@@ -38,7 +37,6 @@ export default function LoginPage({ session, navigate }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [activeField, setActiveField] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthBusy, setOauthBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -111,12 +109,7 @@ export default function LoginPage({ session, navigate }) {
     setError("");
     setMessage("");
     setPasswordVisible(false);
-    setActiveField("");
   }
-
-  const isTyping =
-    (activeField === "email" && email.length > 0) ||
-    (activeField === "password" && password.length > 0);
 
   return (
     <>
@@ -129,11 +122,14 @@ export default function LoginPage({ session, navigate }) {
       </button>
       <div className="login-layout auth-only-layout auth-interactive-layout">
         <aside className="auth-visual-panel">
-          <AuthMascots
-            focusTarget={activeField}
-            isTyping={isTyping}
-            privacyMode={passwordVisible}
-          />
+          <div className="auth-photo-scene">
+            <img
+              src="/images/auth-qr-scan.webp"
+              alt="Customer scanning the QR code on a bottled drink at a shop counter"
+              width="1080"
+              height="1080"
+            />
+          </div>
         </aside>
 
         <section className="login-panel real-auth-panel">
@@ -209,8 +205,6 @@ export default function LoginPage({ session, navigate }) {
                     id="auth-name"
                     value={fullName}
                     onChange={(event) => setFullName(event.target.value)}
-                    onFocus={() => setActiveField("name")}
-                    onBlur={() => setActiveField("")}
                     autoComplete="name"
                     placeholder="Enter your full name"
                     required
@@ -225,8 +219,6 @@ export default function LoginPage({ session, navigate }) {
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  onFocus={() => setActiveField("email")}
-                  onBlur={() => setActiveField("")}
                   autoComplete="email"
                   placeholder="Enter your email"
                   required
@@ -241,8 +233,6 @@ export default function LoginPage({ session, navigate }) {
                     type={passwordVisible ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    onFocus={() => setActiveField("password")}
-                    onBlur={() => setActiveField("")}
                     autoComplete={
                       mode === "signup" ? "new-password" : "current-password"
                     }

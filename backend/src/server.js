@@ -9,7 +9,6 @@ import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
 import manufacturerRouter from './routes/manufacturer.js';
 import verifyCodeRouter from './routes/verifyCode.js';
-import bmoniRouter from './routes/bmoni.js'; // Layer 2 BMoni routes (VBA, offramp, webhooks)
 
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -17,10 +16,6 @@ import partnerApplicationsRouter from './routes/partnerApplications.js';
 import { logEmailJsConfigWarnings } from './services/emailJsService.js';
 
 logEmailJsConfigWarnings();
-
-// BMoni sandbox default
-process.env.BMONI_BASE_URL =
-  process.env.BMONI_BASE_URL || 'https://embedded-dev.bmoni.com';
 
 const requiredEnvVars = [
   'GEMINI_API_KEY',
@@ -30,33 +25,12 @@ const requiredEnvVars = [
   'GENUINENG_ED25519_PRIVATE_KEY',
   'GENUINENG_ED25519_PUBLIC_KEY',
   'GENUINENG_KEY_VERSION',
-  // BMoni Layer 2 Configuration
-  'BMONI_API_KEY',
-  'BMONI_BASE_URL',
-  'BMONI_WEBHOOK_SECRET',
-  'BMONI_SECP256K1_PRIVATE_KEY',
 ];
 
 const missing = requiredEnvVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error(
     `Startup aborted. Missing required environment variables: ${missing.join(", ")}. Configure these in the Render service environment.`,
-  );
-  process.exit(1);
-}
-
-// const secpKey = process.env.BMONI_SECP256K1_PRIVATE_KEY;
-// if (secpKey && !/^0x[0-9a-fA-F]{64}$/.test(secpKey)) {
-//   console.error(
-//     'Startup aborted. BMONI_SECP256K1_PRIVATE_KEY must be a 32-byte hex string starting with 0x (66 characters total).'
-//   );
-//   process.exit(1);
-// }
-
-const secpKey = process.env.BMONI_SECP256K1_PRIVATE_KEY;
-if (secpKey && !/^0x[0-9a-fA-F]{64}$/.test(secpKey)) {
-  console.error(
-    'Startup aborted. BMONI_SECP256K1_PRIVATE_KEY must be a 32-byte hex string starting with 0x (66 characters total).'
   );
   process.exit(1);
 }
@@ -123,17 +97,7 @@ const manufacturerLimiter = rateLimit({
   },
 });
 
-// Preserve raw body buffer for webhook signature validation
-app.use(
-  express.json({
-    limit: '32kb',
-    verify: (req, res, buf) => {
-      if (req.originalUrl.startsWith('/api/bmoni/webhook')) {
-        req.rawBody = buf;
-      }
-    },
-  })
-);
+app.use(express.json({ limit: '32kb' }));
 app.use(compression());
 
 app.use((req, res, next) => {
@@ -169,9 +133,6 @@ if (process.env.MANUFACTURER_PORTAL_ENABLED !== 'false') {
 }
 app.use('/api/partner-applications', apiLimiter, partnerApplicationsRouter);
 app.use('/api/verify-code', apiLimiter, verifyCodeRouter);
-
-// Layer 2 BMoni routes (Webhook endpoint inside bmoniRouter is not rate-limited by apiLimiter)
-app.use('/api/bmoni', bmoniRouter);
 
 app.use("/api", (req, res) => {
   return res.status(404).json({
