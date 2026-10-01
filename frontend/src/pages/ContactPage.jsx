@@ -12,6 +12,10 @@ const topics = [
 ];
 
 export default function ContactPage({ navigate }) {
+  function goBack() {
+    if (window.history.length > 1) window.history.back();
+    else navigate("/");
+  }
   const [form, setForm] = useState({ name: "", email: "", topic: topics[0], message: "" });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -55,6 +59,9 @@ export default function ContactPage({ navigate }) {
   return (
     <section className="partner-application-page contact-page">
       <div className="partner-application-copy">
+        <button type="button" className="back-link" onClick={goBack}>
+          <Icon name="back" size={17} /> Back
+        </button>
         <span className="eyebrow">CONTACT</span>
         <h1>Talk to the GenuineNG team.</h1>
         <p>

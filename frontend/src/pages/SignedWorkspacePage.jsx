@@ -207,7 +207,7 @@ export default function SignedWorkspacePage({
         type="button"
         className="workspace-mobile-toggle"
         onClick={() => setSidebarOpen(true)}
-        aria-label="Open workspace navigation"
+        aria-label="Open checkspace navigation"
       >
         <span />
         <span />
@@ -217,7 +217,7 @@ export default function SignedWorkspacePage({
         <button
           type="button"
           className="workspace-sidebar-scrim"
-          aria-label="Close workspace navigation"
+          aria-label="Close checkspace navigation"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -263,13 +263,13 @@ export default function SignedWorkspacePage({
             type="button"
             className="workspace-sidebar-close"
             onClick={() => setSidebarOpen(false)}
-            aria-label="Close workspace navigation"
+            aria-label="Close checkspace navigation"
           >
             <Icon name="close" size={20} />
           </button>
         </div>
 
-        <nav className="workspace-quick-nav" aria-label="Workspace navigation">
+        <nav className="workspace-quick-nav" aria-label="Checkspace navigation">
           <button
             type="button"
             className="workspace-new-check"

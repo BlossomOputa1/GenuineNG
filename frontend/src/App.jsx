@@ -197,7 +197,7 @@ function AppContent() {
                 "/code-scan": "GenuineNG Code",
                 "/login": "Sign In",
                 "/reset-password": "Reset Password",
-                "/app": "Workspace",
+                "/app": "Checkspace",
                 "/about": "About",
                 "/help": "Help",
                 "/partners": "Partners",
@@ -456,7 +456,7 @@ function AppContent() {
                   href="/app"
                   onClick={(event) => navClick(event, "/app")}
                 >
-                  Workspace
+                  Checkspace
                   <span className="header-action-icon">
                     <Icon name="arrow" size={14} />
                   </span>
@@ -554,7 +554,7 @@ function AppContent() {
                     href="/app"
                     onClick={(event) => navClick(event, "/app")}
                   >
-                    Workspace
+                    Checkspace
                     <span className="header-action-icon">
                       <Icon name="arrow" size={14} />
                     </span>

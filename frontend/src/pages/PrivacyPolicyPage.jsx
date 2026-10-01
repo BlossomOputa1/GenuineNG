@@ -1,9 +1,17 @@
 import Icon from "../components/Icon";
 
 export default function PrivacyPolicyPage({ navigate }) {
+  function goBack() {
+    if (window.history.length > 1) window.history.back();
+    else navigate("/");
+  }
+
   return (
     <section className="placeholder-page legal-page">
       <div className="placeholder-card legal-card">
+        <button type="button" className="back-link" onClick={goBack}>
+          <Icon name="back" size={17} /> Back
+        </button>
         <span className="placeholder-icon">
           <Icon name="shield" size={22} />
         </span>
@@ -52,7 +60,7 @@ export default function PrivacyPolicyPage({ navigate }) {
           <p>
             You can run a product check as a guest without an account. Guest
             checks are not saved to history. When you sign in, your checks can
-            be saved to your workspace history and manufacturer approvals can
+            be saved to your checkspace history and manufacturer approvals can
             be linked to your account.
           </p>
           <h2>3. How we use your information</h2>
@@ -74,7 +82,7 @@ export default function PrivacyPolicyPage({ navigate }) {
           <p>
             Your history belongs to you and is protected by row-level security
             so only you can see it. You can delete saved sessions from your
-            workspace. To request account or data deletion, email
+            checkspace. To request account or data deletion, email
             contact.genuineng@gmail.com from your account email and we will
             confirm once completed.
           </p>
