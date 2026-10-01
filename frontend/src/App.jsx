@@ -8,6 +8,7 @@ import {
   supabase,
   supabaseConfigured,
 } from "./services/supabase";
+import { Analytics } from "@vercel/analytics/next";
 
 const readLocation = () => ({
   pathname: window.location.pathname,
@@ -73,6 +74,7 @@ export default function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <AppContent />
+      <Analytics />
     </Suspense>
   );
 }

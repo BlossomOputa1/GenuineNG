@@ -9,6 +9,7 @@
     "test:frontend-logic": "npm --prefix frontend run test:logic"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "express-rate-limit": "^8.7.0",
     "viem": "^2.56.9"
   }
