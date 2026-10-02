@@ -4,6 +4,7 @@ import { createBatch, getBatchesForManufacturer } from '../services/batchService
 import { generateNextCodeChunk, getGenerationStatus } from '../services/codeGenerationService.js';
 import { getScanActivity } from '../services/scanActivityService.js';
 import { sendCsvExport, sendManifestExport, streamQrZipExport } from '../services/exportService.js';
+import { reserveBatchTokens } from '../services/bmoniService.js';
 
 function handleKnownError(err, res, next) {
   if (err.statusCode) {
@@ -78,7 +79,7 @@ export async function generateCodesController(req, res, next) {
       });
     }
 
-    // Code issuance in the current release is independent of deferred billing.
+    await reserveBatchTokens(req.manufacturer.id, batchId);
     const result = await generateNextCodeChunk({
       manufacturerId: req.manufacturer.id,
       batchId,
@@ -111,6 +112,8 @@ export async function exportBatchController(req, res, next) {
         },
       });
     }
+    const status = await getGenerationStatus({ manufacturerId: req.manufacturer.id, batchId });
+    if (status.complete) await reserveBatchTokens(req.manufacturer.id, batchId);
     const shared = { supabase: req.supabase, manufacturerId: req.manufacturer.id, batchId, res };
     if (format === 'csv') await sendCsvExport(shared);
     else if (format === 'manifest') await sendManifestExport(shared);

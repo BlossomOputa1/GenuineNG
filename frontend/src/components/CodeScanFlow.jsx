@@ -4,30 +4,20 @@ import Icon from './Icon';
 import { parseSignedQr } from '../crypto/verifySignature';
 import { verifyCode } from '../services/api';
 
-function reuseLabel(value) {
-  return {
-    first_scan: 'First public scan',
-    previously_scanned: 'Previously scanned',
-    reuse_limit_reached: 'Reuse limit reached — unit deactivated',
-    revoked: 'Unit already deactivated',
-    manufacturer_check: 'Manufacturer verification — public count unchanged',
-    unavailable: 'Reuse activity unavailable',
-  }[value] || value || 'Unavailable';
-}
-
 function CodeResult({ result, compact = false }) {
   if (!result) return null;
   const genuine = result.verdict === 'genuine';
+  const alreadyUsed = result.verdict === 'already_used';
   const product = result.product || {};
   return (
-    <article className={`code-scan-result-card ${genuine ? 'success' : 'warning'} ${compact ? 'compact' : ''}`}>
+    <article className={`code-scan-result-card ${genuine ? 'success' : alreadyUsed ? 'used' : 'warning'} ${compact ? 'compact' : ''}`}>
       <div className="code-scan-result-head">
         <span className={`code-scan-result-icon ${genuine ? 'success' : 'warning'}`}>
           <Icon name={genuine ? 'check' : 'warning'} size={18} />
         </span>
         <div>
           <span className="eyebrow">VERIFICATION RESULT</span>
-          <h2>{genuine ? 'Genuine' : 'Not Genuine'}</h2>
+          <h2>{genuine ? 'Genuine' : alreadyUsed ? 'Already scanned' : 'Not Genuine'}</h2>
         </div>
       </div>
       <p>{result.reason}</p>
@@ -35,12 +25,6 @@ function CodeResult({ result, compact = false }) {
         <div><small>Product</small><strong>{product.name || 'Not available'}</strong></div>
         <div><small>Manufacturer</small><strong>{product.manufacturer || 'Not available'}</strong></div>
         <div><small>Batch</small><strong>{product.batchCode || 'Not available'}</strong></div>
-        <div><small>Unit</small><strong>{product.unitId || result.payload?.unitId || 'Not available'}</strong></div>
-      </div>
-      <div className="code-scan-reuse-note">
-        <strong>Reuse activity</strong>
-        <span>{reuseLabel(result.reuseStatus || result.reuseCheck)}</span>
-        {result.publicScanNumber ? <small>Public scan #{result.publicScanNumber}</small> : null}
       </div>
     </article>
   );

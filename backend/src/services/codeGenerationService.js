@@ -75,7 +75,6 @@ export async function generateNextCodeChunk({ manufacturerId, batchId, chunkSize
       signature: signed.signature,
       key_version: signed.keyVersion,
       status: 'active',
-      public_scan_count: 0,
     });
   }
 

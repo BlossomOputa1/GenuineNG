@@ -4,6 +4,8 @@ import {
   downloadBatchExport,
   generateCodes,
   getBatches,
+  getBillingConfig,
+  getTokenAccount,
 } from '../../services/manufacturerApi';
 
 const formatNumber = (value) =>
@@ -16,7 +18,7 @@ const dateLabel = (value) =>
         year: "numeric",
       }).format(new Date(value))
     : "-";
-export default function GenerateCodesPage() {
+export default function GenerateCodesPage({ navigate }) {
   const [batches, setBatches] = useState([]);
   const [batchId, setBatchId] = useState("");
   const [progress, setProgress] = useState(null);
@@ -24,12 +26,16 @@ export default function GenerateCodesPage() {
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState('');
   const [error, setError] = useState('');
+  const [billing, setBilling] = useState(null);
+  const [tokenAccount, setTokenAccount] = useState(null);
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      const next = await getBatches();
+      const [next, config] = await Promise.all([getBatches(), getBillingConfig()]);
+      setBilling(config);
+      if (config.enabled) setTokenAccount(await getTokenAccount());
       setBatches(next);
       setBatchId(
         (current) =>
@@ -48,6 +54,7 @@ export default function GenerateCodesPage() {
   useEffect(() => {
     load();
   }, []);
+
 
   const batch = useMemo(
     () => batches.find((item) => item.id === batchId),
@@ -75,6 +82,7 @@ export default function GenerateCodesPage() {
     }
   }
 
+
   async function exportBatch(format) {
     if (!batch || !complete) return;
     setExporting(format);
@@ -99,6 +107,11 @@ export default function GenerateCodesPage() {
           </p>
         </div>
       </section>
+
+      {billing?.enabled && <div className="manufacturer-token-hint">
+        <span><strong>{formatNumber(tokenAccount?.balance)} tokens left</strong> · One token per QR code</span>
+        <button type="button" onClick={() => navigate('/manufacturer/payments')}>Buy tokens <Icon name="arrow" size={15} /></button>
+      </div>}
 
       {error && (
         <div className="inline-notice" role="alert">
@@ -233,6 +246,7 @@ export default function GenerateCodesPage() {
           </aside>
         </div>
       )}
+
 
     </div>
   );

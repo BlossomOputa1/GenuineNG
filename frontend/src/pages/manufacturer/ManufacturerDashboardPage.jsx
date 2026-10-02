@@ -4,6 +4,8 @@ import {
   getBatches,
   getProducts,
   getScanActivity,
+  getBillingConfig,
+  getTokenAccount,
 } from "../../services/manufacturerApi";
 
 const formatNumber = (value) =>
@@ -11,12 +13,11 @@ const formatNumber = (value) =>
 export default function ManufacturerDashboardPage({ navigate, profile }) {
   const safeProfile = profile || { companyName: "Approved manufacturer" };
   const [data, setData] = useState(null);
-  const [statsOpen, setStatsOpen] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    Promise.all([getProducts(), getBatches(), getScanActivity()])
-      .then(([products, batches, activity]) =>
-        setData({ products, batches, activity }),
+    Promise.all([getProducts(), getBatches(), getScanActivity(), getBillingConfig()])
+      .then(async ([products, batches, activity, billing]) =>
+        setData({ products, batches, activity, billing, tokens: billing.enabled ? await getTokenAccount() : null }),
       )
       .catch((problem) =>
         setError(problem.message || "Could not load manufacturer overview."),
@@ -39,12 +40,17 @@ export default function ManufacturerDashboardPage({ navigate, profile }) {
         </div>
       </div>
     );
-  const { products, batches, activity } = data;
+  const { products, batches, activity, tokens } = data;
   const generated = batches.reduce(
     (sum, batch) => sum + (batch.codesGenerated || 0),
     0,
   );
+  const lagosHour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos', hour: 'numeric', hourCycle: 'h23',
+  }).format(new Date()));
+  const greeting = lagosHour < 12 ? 'morning' : lagosHour < 17 ? 'afternoon' : 'evening';
   const stats = [
+    { label: "Tokens left", value: tokens ? formatNumber(tokens.balance) : "—", icon: "qr" },
     { label: "Registered products", value: products.length, icon: "package" },
     { label: "Production batches", value: batches.length, icon: "layers" },
     { label: "Codes generated", value: formatNumber(generated), icon: "qr" },
@@ -59,7 +65,7 @@ export default function ManufacturerDashboardPage({ navigate, profile }) {
       <section className="manufacturer-page-intro">
         <div>
           <span className="manufacturer-eyebrow">OVERVIEW</span>
-          <h1>Good morning, {safeProfile.companyName}.</h1>
+          <h1>Good {greeting}, {safeProfile.companyName}.</h1>
           <p>
             Manage registered products, production batches and GenuineNG codes
             from one place.
@@ -73,21 +79,9 @@ export default function ManufacturerDashboardPage({ navigate, profile }) {
           <Icon name="qr" size={17} /> Generate codes
         </button>
       </section>
-      <button
-        type="button"
-        className={`manufacturer-stats-toggle ${statsOpen ? "open" : ""}`}
-        onClick={() => setStatsOpen((value) => !value)}
-        aria-expanded={statsOpen}
-        aria-controls="manufacturer-dashboard-stats"
-      >
-        <span>
-          <Icon name="chart" size={18} /> Stats
-        </span>
-        <Icon name={statsOpen ? "minus" : "plus"} size={17} />
-      </button>
       <section
         id="manufacturer-dashboard-stats"
-        className={`manufacturer-stat-grid ${statsOpen ? "mobile-open" : ""}`}
+        className="manufacturer-stat-grid"
         aria-label="Manufacturer statistics"
       >
         {stats.map((stat) => (
@@ -171,13 +165,7 @@ export default function ManufacturerDashboardPage({ navigate, profile }) {
                     {item.batchCode} · {formatNumber(item.totalScans)} scans
                   </small>
                 </span>
-                <span
-                  className={`manufacturer-reuse-state ${item.reuseSignals ? "warning" : "clear"}`}
-                >
-                  {item.reuseSignals
-                    ? `${item.reuseSignals} reuse signals`
-                    : "No unusual activity"}
-                </span>
+                <strong className="manufacturer-scan-count">{formatNumber(item.totalScans)}</strong>
               </article>
             ))}
           </div>

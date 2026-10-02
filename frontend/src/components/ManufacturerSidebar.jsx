@@ -16,6 +16,7 @@ const navGroups = [
         path: "/manufacturer/scan-activity",
         icon: "chart",
       },
+      { label: "Payments", path: "/manufacturer/payments", icon: "history" },
     ],
   },
 ];
@@ -34,6 +35,8 @@ export default function ManufacturerSidebar({
   setCollapsed,
   mobileOpen,
   setMobileOpen,
+  onContact,
+  contactButtonRef,
 }) {
   function go(path) {
     setMobileOpen(false);
@@ -130,6 +133,19 @@ export default function ManufacturerSidebar({
         </nav>
 
         <div className="manufacturer-sidebar-bottom">
+          <button
+            type="button"
+            className="manufacturer-consumer-link"
+            onClick={() => {
+              setMobileOpen(false);
+              onContact();
+            }}
+            ref={contactButtonRef}
+            title="Contact"
+          >
+            <Icon name="mail" size={17} />
+            <span>Contact</span>
+          </button>
           <button
             type="button"
             className="manufacturer-consumer-link"
