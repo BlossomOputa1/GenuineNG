@@ -198,6 +198,8 @@ function PartnerApplicationForm({ navigate }) {
               <input
                 required
                 maxLength="160"
+                autoComplete="organization"
+                placeholder="Enter your company name"
                 value={form.companyName}
                 onChange={(e) =>
                   setForm({ ...form, companyName: e.target.value })
@@ -209,6 +211,8 @@ function PartnerApplicationForm({ navigate }) {
               <input
                 required
                 maxLength="120"
+                autoComplete="name"
+                placeholder="Enter the contact person's full name"
                 value={form.contactPersonName}
                 onChange={(e) =>
                   setForm({ ...form, contactPersonName: e.target.value })
@@ -221,6 +225,8 @@ function PartnerApplicationForm({ navigate }) {
                 required
                 type="email"
                 maxLength="254"
+                autoComplete="email"
+                placeholder="name@company.com"
                 value={form.businessEmail}
                 onChange={(e) =>
                   setForm({ ...form, businessEmail: e.target.value })
@@ -233,6 +239,8 @@ function PartnerApplicationForm({ navigate }) {
                 required
                 type="tel"
                 maxLength="40"
+                autoComplete="tel"
+                placeholder="e.g. +234 801 234 5678"
                 value={form.phoneNumber}
                 onChange={(e) =>
                   setForm({ ...form, phoneNumber: e.target.value })

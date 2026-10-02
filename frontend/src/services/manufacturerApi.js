@@ -160,53 +160,31 @@ export async function downloadBatchExport(batchId, format) {
   link.remove();
   URL.revokeObjectURL(url);
 }
-// Add to frontend/src/services/manufacturerApi.js
 
-export async function linkBmoniAccount({ phoneNumber, bmoniTag }) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE_URL}/api/manufacturer/link-bmoni`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ phoneNumber, bmoniTag }),
-  });
-
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.error?.message || 'Failed to link BMoni account.');
-  }
+export async function getBillingConfig(signal) {
+  const { body } = await authenticatedFetch('/api/manufacturer/billing/config', { signal });
   return body;
 }
 
-export async function sandboxSettleInvoice(reference) {
-  // Retrieve token directly from the active Supabase session
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token || localStorage.getItem('token');
-
-  const res = await fetch(`${API_BASE_URL}/api/manufacturer/sandbox-settle`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ reference }),
-  });
-
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.error?.message || 'Could not verify test settlement.');
-  }
-  return body;
+export async function getTokenAccount(signal) {
+  const { body } = await authenticatedFetch('/api/manufacturer/tokens', { signal });
+  return body.account;
 }
 
-export async function requestBatchVba(batchId, amount, signal) {
-  const { body } = await authenticatedFetch('/api/manufacturer/vba', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ batchId, amount }),
-    signal,
+export async function buyTokens(quantity, signal) {
+  const { body } = await authenticatedFetch('/api/manufacturer/token-invoices', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity }), signal,
   });
-  return body.data || body;
+  return body.invoice;
+}
+
+export async function getTokenInvoice(invoiceId, signal) {
+  const { body } = await authenticatedFetch(`/api/manufacturer/token-invoices/${encodeURIComponent(invoiceId)}`, { signal });
+  return body.invoice;
+}
+
+export async function getInvoices(signal) {
+  const { body } = await authenticatedFetch('/api/manufacturer/invoices', { signal });
+  return body.invoices;
 }

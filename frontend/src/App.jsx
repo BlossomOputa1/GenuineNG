@@ -1,4 +1,3 @@
-import { Analytics } from "@vercel/analytics/react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Icon from "./components/Icon";
 import NotificationBell from "./components/NotificationBell";
@@ -9,6 +8,7 @@ import {
   supabase,
   supabaseConfigured,
 } from "./services/supabase";
+import { Analytics } from "@vercel/analytics/react";
 
 const readLocation = () => ({
   pathname: window.location.pathname,
@@ -402,9 +402,7 @@ function AppContent() {
   }
 
   return (
-    <div
-      className={`app-shell ${route.pathname === "/contact" ? "contact-route-shell" : ""}`}
-    >
+    <div className={`app-shell ${route.pathname === "/contact" ? "contact-route-shell" : ""} ${route.pathname === "/partners" ? "partner-route-shell" : ""}`}>
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -618,7 +616,7 @@ function AppContent() {
         id="main-content"
         ref={mainRef}
         tabIndex="-1"
-        className={`site-main ${route.pathname === "/scan" ? "guest-scan-main" : ""} ${route.pathname === "/contact" ? "contact-route-main" : ""} ${route.pathname === "/about" ? "about-route-main" : ""}`}
+        className={`site-main ${route.pathname === "/scan" ? "guest-scan-main" : ""} ${route.pathname === "/contact" ? "contact-route-main" : ""} ${route.pathname === "/partners" ? "partner-route-main" : ""} ${route.pathname === "/about" ? "about-route-main" : ""}`}
       >
         {route.pathname === "/" ? (
           <ScanPage

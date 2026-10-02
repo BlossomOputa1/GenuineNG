@@ -9,6 +9,7 @@ import scansRouter from './routes/scans.js';
 import extractLabelRouter from './routes/extractLabel.js';
 import manufacturerRouter from './routes/manufacturer.js';
 import verifyCodeRouter from './routes/verifyCode.js';
+import bmoniRouter from './routes/bmoni.js';
 
 import './services/keyManager.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -97,6 +98,8 @@ const manufacturerLimiter = rateLimit({
   },
 });
 
+// BMONI signs the exact bytes. Route the webhook before JSON parsing.
+app.use('/api/bmoni', bmoniRouter);
 app.use(express.json({ limit: '32kb' }));
 app.use(compression());
 

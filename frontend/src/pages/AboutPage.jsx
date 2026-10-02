@@ -37,13 +37,13 @@ const layerTwoSteps = [
   },
   {
     icon: "scan",
-    title: "Print and scan",
-    copy: "The manufacturer prints each code on its packaging. Customers scan it with a phone when they encounter the product.",
+    title: "Seal and scan",
+    copy: "The manufacturer places the code under a seal. After purchase, the final consumer peels the seal and scans it.",
   },
   {
     icon: "shield",
     title: "Read the scan signal",
-    copy: "The result checks the code signature and shows signals such as first scan, previous scan, reuse limit reached, or revoked.",
+    copy: "After purchase, peel the seal and check the signed QR code. The first valid scan marks that individual code as used.",
   },
 ];
 
@@ -63,7 +63,7 @@ const benefits = [
     points: [
       "Give each unit a signed code that is harder to imitate than a copied label.",
       "Help customers check the product at the point of purchase.",
-      "See aggregate scan activity and possible reuse or revoked-code signals.",
+      "See simple scan totals for each production batch.",
     ],
   },
 ];

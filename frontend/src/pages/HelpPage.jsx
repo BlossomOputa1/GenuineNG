@@ -149,17 +149,16 @@ export default function HelpPage({ navigate }) {
           <div className="help-story-copy">
             <span className="about-story-kicker">04 / GENUINENG CODE</span>
             <h2 id="help-code-heading">One code for one unit.</h2>
-            <p>Switch to GenuineNG Code on the main page. Point your camera at a partner unit’s QR code or upload a clear photo. The check reads its signature and the unit’s scan signals. Signed-in users can save code scans to history.</p>
+            <p>Switch to GenuineNG Code on the main page. Peel the seal after purchase and scan the partner product’s QR code. The first valid check marks that individual code as used. Signed-in users can save results to history.</p>
             <button type="button" className="help-story-link" onClick={() => navigate("/#scan-workspace")}>Try a code scan <Icon name="arrow" size={17} /></button>
           </div>
           <div className="help-story-code-panel" aria-label="Possible code scan signals">
             <span className="help-story-code-mark"><Icon name="qr" size={52} /></span>
             <strong>What the scan can show</strong>
             <ul>
-              <li><span>First public scan</span><small>This unit has not been publicly scanned before.</small></li>
-              <li><span>Previously scanned</span><small>A previous scan has been recorded.</small></li>
-              <li><span>Reuse limit reached</span><small>The unit can no longer be used for a fresh check.</small></li>
-              <li><span>Revoked</span><small>The code has been deactivated.</small></li>
+              <li><span>Genuine</span><small>This code is valid and has now been marked as used.</small></li>
+              <li><span>Already scanned</span><small>Ask the seller for an unopened product.</small></li>
+              <li><span>Not Genuine</span><small>The code could not be confirmed or has been deactivated.</small></li>
             </ul>
           </div>
         </div>

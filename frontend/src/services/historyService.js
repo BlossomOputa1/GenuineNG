@@ -84,15 +84,11 @@ function codeScanToResult(scan) {
     onlineVerified: scan.online_verified,
     verdict: scan.verdict,
     reason: scan.reason,
-    reuseStatus: scan.reuse_status,
-    reuseCheck: scan.reuse_status,
-    publicScanNumber: scan.public_scan_number,
     unitStatus: scan.unit_status,
     product: {
       name: scan.product_name,
       manufacturer: scan.manufacturer_name,
       batchCode: scan.batch_code,
-      unitId: scan.unit_id,
     },
     stored: true,
   };
@@ -139,7 +135,7 @@ export async function getSessionWithScans(userId, sessionId) {
   if (session.mode === 'genuine_code') {
     const { data, error: scanError } = await client
       .from('code_scans')
-      .select('id,unit_id,payload,signature,signature_valid,online_verified,verdict,reuse_status,public_scan_number,unit_status,reason,product_name,manufacturer_name,batch_code,checked_at,created_at')
+      .select('id,payload,signature,signature_valid,online_verified,verdict,unit_status,reason,product_name,manufacturer_name,batch_code,checked_at,created_at')
       .eq('user_id', userId)
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
@@ -204,8 +200,6 @@ export async function saveCodeScan(_userId, sessionId, result) {
       signature_valid: Boolean(result.signatureValid),
       online_verified: result.onlineVerified !== false,
       verdict: result.verdict,
-      reuse_status: result.reuseStatus || result.reuseCheck || 'unavailable',
-      public_scan_number: result.publicScanNumber ?? null,
       unit_status: result.unitStatus || null,
       reason: result.reason || null,
       product_name: result.product?.name || null,
