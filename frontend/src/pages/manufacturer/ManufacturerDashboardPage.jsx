@@ -8,6 +8,13 @@ import {
 
 const formatNumber = (value) =>
   new Intl.NumberFormat("en-NG").format(value || 0);
+
+const getDayGreeting = (date = new Date()) => {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  return "Good evening";
+};
 export default function ManufacturerDashboardPage({ navigate, profile }) {
   const safeProfile = profile || { companyName: "Approved manufacturer" };
   const [data, setData] = useState(null);
@@ -59,7 +66,7 @@ export default function ManufacturerDashboardPage({ navigate, profile }) {
       <section className="manufacturer-page-intro">
         <div>
           <span className="manufacturer-eyebrow">OVERVIEW</span>
-          <h1>Good morning, {safeProfile.companyName}.</h1>
+          <h1>{getDayGreeting()}, {safeProfile.companyName}.</h1>
           <p>
             Manage registered products, production batches and GenuineNG codes
             from one place.
