@@ -1,0 +1,61 @@
+// backend/probe-bmoni-vba.js
+import 'dotenv/config';
+import bmoniClient from './src/services/bmoniClient.js';
+
+const BMONI_USER_ID = 'd4dc9729-85f9-4946-aa8d-b260b8eef5c8';
+const PARTNER_USER_ID = '1c0ea3b4-e248-4b05-b413-93570eca89da';
+
+async function testEndpoint(label, fn) {
+  process.stdout.write(`Testing ${label}... `);
+  try {
+    const res = await fn();
+    console.log(`SUCCESS (${res.status})`);
+    console.dir(res.data, { depth: null });
+    return true;
+  } catch (err) {
+    console.log(`FAILED (${err.response?.status}):`, err.response?.data?.message || err.message);
+    return false;
+  }
+}
+
+async function probe() {
+  console.log('--- Probing BMoni Smart Wallet & VBA Endpoints ---\n');
+
+  // Candidate 1: User smart-wallets subresource
+  await testEndpoint('GET /v1/users/:bmoniUserId/smart-wallets', () =>
+    bmoniClient.get(`/v1/users/${BMONI_USER_ID}/smart-wallets`)
+  );
+
+  // Candidate 2: User wallets subresource
+  await testEndpoint('GET /v1/users/:bmoniUserId/wallets', () =>
+    bmoniClient.get(`/v1/users/${BMONI_USER_ID}/wallets`)
+  );
+
+  // Candidate 3: Direct VBA on user ID
+  await testEndpoint('POST /v1/users/:bmoniUserId/onramp/vba/nigeria', () =>
+    bmoniClient.post(`/v1/users/${BMONI_USER_ID}/onramp/vba/nigeria`, {
+      amount: 50000,
+      currency: 'NGN',
+    })
+  );
+
+  // Candidate 4: Smart wallet onramp using bmoniUserId directly
+  await testEndpoint('POST /v1/smart-wallets/:bmoniUserId/onramp/vba/nigeria', () =>
+    bmoniClient.post(`/v1/smart-wallets/${BMONI_USER_ID}/onramp/vba/nigeria`, {
+      amount: 50000,
+      currency: 'NGN',
+    })
+  );
+
+  // Candidate 5: Create smart wallet via user subroute
+  await testEndpoint('POST /v1/users/:bmoniUserId/smart-wallets', () =>
+    bmoniClient.post(`/v1/users/${BMONI_USER_ID}/smart-wallets`, {})
+  );
+
+  // Candidate 6: General /v1/wallets
+  await testEndpoint('GET /v1/wallets', () =>
+    bmoniClient.get(`/v1/wallets?userId=${BMONI_USER_ID}`)
+  );
+}
+
+probe().catch(console.error);
