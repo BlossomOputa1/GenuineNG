@@ -28,6 +28,19 @@ export async function signUpWithPassword({ email, password, fullName }) {
   return data;
 }
 
+export async function signInWithGoogle() {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/app`,
+      queryParams: { access_type: 'offline', prompt: 'consent' },
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function sendPasswordReset(email) {
   const client = requireSupabase();
   const normalizedEmail = String(email || '').trim().toLowerCase();

@@ -1,19 +1,88 @@
+import { useEffect, useRef, useState } from "react";
 import Icon from "./Icon";
 
 const reasonStats = [
   {
     value: "13–15%",
+    targets: [13, 15],
+    suffix: "%",
     label: "Medicines NAFDAC estimates are fake",
   },
   {
     value: "70%",
+    targets: [70],
+    suffix: "%",
     label: "Higher estimate reported by another health agency",
   },
   {
     value: "50%+",
+    targets: [50],
+    suffix: "%+",
     label: "Seized fakes linked to cosmetics, food and drinks",
   },
 ];
+
+function formatStat(targets, suffix, progress) {
+  return `${targets.map((target) => Math.round(target * progress)).join("–")}${suffix}`;
+}
+
+function CountUpStat({ stat }) {
+  const cardRef = useRef(null);
+  const [display, setDisplay] = useState(() =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    !("IntersectionObserver" in window)
+      ? stat.value
+      : formatStat(stat.targets, stat.suffix, 0)
+  );
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reducedMotion.matches || !("IntersectionObserver" in window)) {
+      return undefined;
+    }
+
+    let frame;
+    let started = false;
+    const duration = 1200;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting || started) return;
+      started = true;
+      observer.disconnect();
+      const start = performance.now();
+
+      function tick(now) {
+        const elapsed = Math.min((now - start) / duration, 1);
+        const progress = 1 - Math.pow(1 - elapsed, 3);
+        setDisplay(formatStat(stat.targets, stat.suffix, progress));
+        if (elapsed < 1) frame = window.requestAnimationFrame(tick);
+      }
+
+      frame = window.requestAnimationFrame(tick);
+    }, { threshold: 0.25, rootMargin: "0px 0px -10% 0px" });
+
+    observer.observe(cardRef.current);
+    const stopForReducedMotion = () => {
+      if (!reducedMotion.matches) return;
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+      setDisplay(stat.value);
+    };
+    reducedMotion.addEventListener("change", stopForReducedMotion);
+
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+      reducedMotion.removeEventListener("change", stopForReducedMotion);
+    };
+  }, [stat]);
+
+  return (
+    <div className="reason-stat-card" ref={cardRef}>
+      <strong aria-label={stat.value}><span aria-hidden="true">{display}</span></strong>
+      <span>{stat.label}</span>
+    </div>
+  );
+}
 
 export default function WhyGenuineNG({ navigate }) {
   return (
@@ -75,12 +144,7 @@ export default function WhyGenuineNG({ navigate }) {
           className="reason-stats"
           aria-label="Counterfeit product statistics"
         >
-          {reasonStats.map((stat) => (
-            <div className="reason-stat-card" key={stat.value}>
-              <strong>{stat.value}</strong>
-              <span>{stat.label}</span>
-            </div>
-          ))}
+          {reasonStats.map((stat) => <CountUpStat stat={stat} key={stat.value} />)}
         </div>
       </div>
     </section>
