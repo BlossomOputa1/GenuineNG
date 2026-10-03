@@ -3,8 +3,9 @@ const GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_MAX_RETRIES = 2;
 const GEMINI_RETRY_DELAY_MS = 1_200;
 
-const EXTRACTION_PROMPT = `You are an OCR and packaging data extraction specialist for consumer goods and pharmaceuticals sold in Nigeria.
-Inspect the provided image(s) carefully. Read all packaging text, including small print, stamps, embossing, and back-panel label details.
+export const EXTRACTION_PROMPT = `You are an OCR and packaging data extraction specialist for consumer goods and pharmaceuticals sold in Nigeria.
+You are shown ONE photo of a product pack (either front or back/side panel). Transcribe ONLY what is visible in THIS photo. Never guess text from the other side.
+Read all packaging text, including small print, stamps, embossing, and back-panel label details.
 
 Return ONLY a valid JSON object with these keys:
 {
@@ -15,17 +16,29 @@ Return ONLY a valid JSON object with these keys:
 }
 
 Field extraction instructions:
-- productName: The prominent brand or trade name printed on the packaging (e.g., brand line + product variant).
-- manufacturer: The entity that produced, manufactured, or packaged the product. Prioritize names following "Mfd by", "Made by", "Packed for", or corporate entities with legal designations (Ltd, PLC, Inc, GmbH). If only a distributor/brand house is listed, extract that company name.
-- registrationNumber: The Nigerian regulatory identification number (NAFDAC). Look for text formatted like "NAFDAC REG NO", "NRN", "Reg No:", or alphanumeric patterns such as "A4-1234", "B4-1234", "04-1234", or "01-1234LL". Extract the full number string.
-- expiryDate: Look for date stamps labeled "EXP", "EXPIRY", "BEST BEFORE", "BB", or dot-matrix printed dates. Convert to YYYY-MM-DD format. If only month and year are printed (e.g., 08/28), set the day to the last day of that month (2028-08-31).
+- productName: The prominent brand or trade name printed on the packaging (e.g., brand line + product variant, such as "Emzoron Blood Tonic"). Use the largest brand line visible in THIS photo. Do not combine front and back names.
+- manufacturer: The entity that PRODUCED, MANUFACTURED, or PACKED the product. Strict maker hierarchy:
+  1. Names following "Mfd by", "Mfg by", "Manufactured by", "Made by", "Produced by", "Packed by", "Packed for" -> extract that company name WITH its legal suffix (Ltd, Limited, Plc, PLC, Nig. Ltd, Industries, Pharmaceuticals, Laboratories, GmbH, Inc).
+  2. A corporate entity with a maker legal designation in the small-print address block -> extract it.
+  3. NEVER return "Marketed by", "Distributed by", "Imported by", "Sold by", brand houses, or taglines as manufacturer. If THIS photo shows only a marketer/distributor and no maker line, return null for manufacturer.
+  Example: photo shows "Manufactured by Fidson Healthcare Plc" and "Distributed by XYZ Ltd" -> manufacturer is "Fidson Healthcare Plc", never XYZ.
+- registrationNumber: The Nigerian regulatory identification number (NAFDAC). Look for text formatted like "NAFDAC REG NO", "NAFDAC No", "NRN", "Reg No:", or alphanumeric patterns such as "A4-1234", "B4-1234", "04-1234", or "01-1234LL". Extract the full number string exactly as printed, preserving dashes and suffix letters. Never invent digits; if partially obscured, return null.
+- expiryDate: Look for date stamps labeled "EXP", "EXPIRY", "EXP. DATE", "BEST BEFORE", "BB", "Use Before", or dot-matrix/embossed printed dates. Convert to YYYY-MM-DD format. If only month and year are printed (e.g., 08/28), set the day to the last day of that month (2028-08-31). Never reuse the manufacturing date as expiry.
 
 Rules:
 - Do not add markdown code fences or explanatory prose—return raw JSON only.
-- If a specific field is entirely unreadable or omitted from the packaging, assign null.
+- Transcribe exactly as printed. Do not expand abbreviations ("Ltd" stays "Ltd"), do not fix spelling, do not add punctuation.
+- If a specific field is entirely unreadable, cropped out, or absent from THIS photo, assign null. Null is correct and preferred over a guess.
 - If text is legible despite slight tilt, glare, or perspective distortion, extract the characters as printed.`;
 
 const STRING_FIELDS = ['productName', 'manufacturer', 'registrationNumber'];
+
+// Prefixes Gemini sometimes includes verbatim ("Mfd by X", "Marketed by Y").
+// Stripped in normalization so downstream Greenbook matching sees a clean name.
+const MAKER_PREFIX_PATTERN =
+  /^(mfd\.?\s*by|mfg\.?\s*by|manufactured\s*by|made\s*by|produced\s*by|packed\s*(by|for))\s*[:\-–]?\s*/i;
+const NON_MAKER_PREFIX_PATTERN =
+  /^(marketed\s*by|distributed\s*by|imported\s*by|sold\s*by|registered\s*by)\s*[:\-–]?\s*/i;
 
 function isValidCalendarDate(dateStr) {
   if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr))
@@ -39,30 +52,62 @@ function isValidCalendarDate(dateStr) {
   );
 }
 
+function cleanStringField(key, value) {
+  if (typeof value !== 'string') return null;
+  let cleaned = value.replace(/\s+/g, ' ').trim();
+  if (cleaned === '') return null;
+  if (key === 'manufacturer') {
+    // Strip a leading maker prefix Gemini may have copied ("Mfd by X" -> "X").
+    cleaned = cleaned.replace(MAKER_PREFIX_PATTERN, '').trim();
+    // If what remains is actually a marketer/distributor line, treat as
+    // unknown maker rather than returning the wrong entity. A bare
+    // "Marketed by Y" with no maker line should have been null already,
+    // but this is a safety net for "Y Ltd (Marketed by ...)" style strings.
+    if (NON_MAKER_PREFIX_PATTERN.test(value.trim()) && !MAKER_PREFIX_PATTERN.test(value.trim())) {
+      return null;
+    }
+    if (cleaned === '') return null;
+  }
+  if (key === 'registrationNumber') {
+    // Keep only the number token if Gemini added a label ("NAFDAC No: A4-1234").
+    const match = cleaned.match(/[A-Z]?\d[\dA-Z-]*\d[A-Z]{0,3}/i);
+    if (match && /\b(nafdac|reg|nrn|no)\b/i.test(cleaned) && match[0].length >= 4) {
+      cleaned = match[0].trim();
+    }
+  }
+  return cleaned === '' ? null : cleaned;
+}
+
 export function normalizeExtractedFields(fields = {}) {
   const normalized = {};
 
   for (const key of STRING_FIELDS) {
-    const value = fields[key];
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      normalized[key] = trimmed === '' ? null : trimmed;
-    } else {
-      normalized[key] = null;
-    }
+    normalized[key] = cleanStringField(key, fields[key]);
   }
 
-  normalized.expiryDate = isValidCalendarDate(fields.expiryDate)
-    ? fields.expiryDate
-    : null;
+  const rawExpiry = typeof fields.expiryDate === 'string' ? fields.expiryDate.trim() : null;
+  normalized.expiryDate = isValidCalendarDate(rawExpiry) ? rawExpiry : null;
 
   return normalized;
 }
 
+// Per-field image priority. productName reads best off the front (largest
+// brand line); maker/regulatory fields read best off the back/side panel
+// (small print with "Mfd by", NAFDAC, expiry stamp). The old front-first
+// rule let a front distributor name shadow the correct back maker name.
+const MERGE_PRIORITY = {
+  productName: ['front', 'back'],
+  manufacturer: ['back', 'front'],
+  registrationNumber: ['back', 'front'],
+  expiryDate: ['back', 'front'],
+};
+
 export function mergeExtractedFields(front, back) {
+  const sources = { front: front || {}, back: back || {} };
   const merged = {};
   for (const key of [...STRING_FIELDS, 'expiryDate']) {
-    merged[key] = front?.[key] ?? back?.[key] ?? null;
+    const [first, second] = MERGE_PRIORITY[key] || ['front', 'back'];
+    merged[key] = sources[first]?.[key] ?? sources[second]?.[key] ?? null;
   }
   return merged;
 }
@@ -85,6 +130,11 @@ async function requestGemini(imageItem) {
     },
   ];
   const generationConfig = {
+    // Low temperature + topK/topP for deterministic transcription: extraction
+    // must copy print, never paraphrase. Higher values caused maker-name drift.
+    temperature: 0.1,
+    topK: 1,
+    topP: 0.9,
     responseMimeType: 'application/json',
     responseSchema: {
       type: 'OBJECT',
