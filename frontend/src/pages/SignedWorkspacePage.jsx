@@ -343,7 +343,7 @@ export default function SignedWorkspacePage({
             }}
           >
             <Icon name="info" size={17} />
-            <span>Contact</span>
+            <span>Contact Us</span>
           </button>
         </nav>
 
