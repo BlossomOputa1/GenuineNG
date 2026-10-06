@@ -1,10 +1,10 @@
 // services/bmoniSigner.js
-import 'dotenv/config';
-import { privateKeyToAccount } from 'viem/accounts';
+import "dotenv/config";
+import { privateKeyToAccount } from "viem/accounts";
 
 const privateKey = process.env.BMONI_SECP256K1_PRIVATE_KEY;
 if (!privateKey) {
-  throw new Error('BMONI_SECP256K1_PRIVATE_KEY must be configured.');
+  throw new Error("BMONI_SECP256K1_PRIVATE_KEY must be configured.");
 }
 
 const account = privateKeyToAccount(privateKey);
