@@ -144,7 +144,7 @@ export default function ManufacturerSidebar({
             title="Contact"
           >
             <Icon name="mail" size={17} />
-            <span>Contact</span>
+            <span>Contact Us</span>
           </button>
           <button
             type="button"
