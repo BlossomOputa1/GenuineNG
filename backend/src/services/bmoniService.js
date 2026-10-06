@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { supabase as admin } from '../config/supabaseClient.js';
 import { assertSandboxReady, getSandboxDepositAccount, sandboxBillingEnabled } from './bmoniClient.js';
 
-export const PRICE_PER_CODE_NGN = 5;
+export const PRICE_PER_CODE_NGN = 1;
 
 function fail(message, statusCode, code) {
   const error = new Error(message);
